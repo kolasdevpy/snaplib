@@ -1,16 +1,24 @@
-
-
 from setuptools import setup, find_packages
-from os.path import join, dirname
-import snaplib.snaplib as snaplib
+
+with open("README.md", "r") as readme_file:
+    readme = readme_file.read()
+
+requirements = ["pandas>=1", "numpy>=1", "scikit-learn>=1", "tqdm>=4"]
 
 setup(
-    entry_points = {'console_scripts': ['trash = snaplib.snaplib:main']},
-    name ='snaplib',
-    author = 'Artyom Kolas', 
-    author_email = 'artyom.kolas@gmail.com',
-    license = 'MIT',
-    version = '0.0.1',
+    name="snaplib",
+    version="0.0.1",
+    author="Artyom Kolas",
+    author_email="artyom.kolas@gmail.com",
+    description="Data preprocessing lib",
+    long_description=readme,
+    long_description_content_type="text/markdown",
+    url="https://github.com/kolasdevpy/snaplib",
     packages=find_packages(),
-    long_description=open(join(dirname(__file__), 'README.md')).read(),
+    install_requires=requirements,
+    classifiers=[
+        "Programming Language :: Python :: 3.10",
+        "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    ],
 )
+
