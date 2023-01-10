@@ -60,6 +60,4 @@ class snaplib:
             print(f'shape: {df.shape}\n')
             print(f'\nFinish shape: {df.shape}\n')
             snaplib.nan_plot(df)
-
-
         return df
