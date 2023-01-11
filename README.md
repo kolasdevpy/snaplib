@@ -5,4 +5,5 @@ ____________________________________________
 
 # user guide
 <h1>Kaggle Notebook</h1>
+**[Kaggle Notebook](https://www.kaggle.com/code/artyomkolas/data-preprocessing-lib?scriptVersionId=116077080)**
 <https://www.kaggle.com/code/artyomkolas/data-preprocessing-lib?scriptVersionId=116077080>
