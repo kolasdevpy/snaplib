@@ -42,6 +42,9 @@ class Snaplib:
     def nan_plot(df):
         '''
         Visualise missing data in pandas.DataFrame
+
+        Use case:
+        Snaplib.nan_plot(df)
         '''
 
         plt.figure(figsize=(int(len(df.columns)/4) if len(df.columns)>30 else 10, 10))
@@ -65,6 +68,10 @@ class Snaplib:
         drop_duplicates, 
         drop rows with nan in target, 
         drop column with 1 unique value
+
+        Use case:
+        df = Snaplib.cleane(df, targetNone, verbose=True)
+        
         '''
         
         # DROP DUPLICATES
@@ -120,9 +127,13 @@ class Snaplib:
 
     def train_test_split_balanced(df, target_feature, test_size=0.33, random_state=0, research_iter=0):
         ''' 
+
         Split the data with the distribution as close as possible 
         to the same in both the train set and the test set, and not only for the target column, 
         but also for all other columns.
+
+        Use case:
+        train_X, test_X, train_y, test_y = Snaplib.train_test_split_balanced(df, target_feature, test_size=0.33, random_state=0, research_iter=0)
         
         1) The input should be a whole DataFrame. It's the first positional argument.
         2) And the second positional argument should be the name of the target feature as a string.
@@ -317,14 +328,15 @@ class Snaplib:
 
     def recover_data(
                     data_input_0, 
-                    target = None,   # For prediction at the end
                     verbose = 1,
                     stacking = 0
                     ):
         ''' 
         Imputing of missing values (np.nan) in tabular data, not TimeSeries.
 
-        if set target = column_name(str type) It will be predicted as latest column in cycle of columns with np.NaN¶
+        Use case:
+        df = Snaplib.recover_data(df, target = None, verbose = 1, stacking = 0)
+
         if set verbose = True algorithm run tests and print results of tests for decision making.
         if set stacking = True algorithm apply ensemble lightgbm, catboost, xgboost, else lightgbm only. 
         And ensemble decrise train/test leakage.
@@ -460,13 +472,7 @@ class Snaplib:
         data_input.reset_index(drop=True, inplace = True)
         
         all_miss_features = list(data_info.index[data_info['NaN_counts'] > 0])
-
         
-        # move target_feature to end of the prediction
-        if target:
-            if target in all_miss_features:
-                all_miss_features.append(all_miss_features.pop(all_miss_features.index(target)))
-                
                 
         # a simple encoding
         for col in data_input.columns:
