@@ -1,6 +1,9 @@
 # snaplib
-simple preprocessing data tools
+<h1>snaplib</h1>
+<h2>A simple data preprocessing tools.</h2>
+
+____________________________________________
 
 # User Guide
-**[Kaggle Notebook](https://www.kaggle.com/code/artyomkolas/data-preprocessing-lib?scriptVersionId=116077080)**.
+<h1>Kaggle Notebook/h1>
 <https://www.kaggle.com/code/artyomkolas/data-preprocessing-lib?scriptVersionId=116077080>
