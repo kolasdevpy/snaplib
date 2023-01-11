@@ -16,14 +16,15 @@ ____________________________________________
 !pip install snaplib     
 from snaplib.snaplib import Snaplib     
 sl = Snaplib()    
+       
 
-
+       
 missing_info_df = sl.nan_info(df)     
       
 sl.nan_plot(df)      
      
 df = sl.cleane(df, target_name, verbose=True)     
       
-train_X, test_X, train_y, test_y = Snaplib.train_test_split_balanced(df, target_name, test_size=0.2, random_state=0, research_iter=0)     
+train_X, test_X, train_y, test_y = sl.train_test_split_balanced(df, target_name, test_size=0.2, random_state=0, research_iter=0)     
       
 df = sl.recover_data(df, verbose=True, stacking=True)    
