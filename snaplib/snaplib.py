@@ -1,43 +1,49 @@
+import datetime
+import sys
+import warnings
+if not sys.warnoptions:
+    warnings.simplefilter("ignore")
+
+
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 
 
+import lightgbm as lgb
+import catboost as ctb
+import xgboost as xgb
 
-
-import datetime
 
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error
+from sklearn.metrics import classification_report
 from sklearn.metrics import f1_score
 
 
 
 
 
-import random
-import sys
-import warnings
-if not sys.warnoptions:
-    warnings.simplefilter("ignore")
 
-import lightgbm as lgb
-import catboost as ctb
-import xgboost as xgb
-from sklearn.metrics import classification_report
 
 
 
 
 
 class Snaplib:
-    '''preprocessing library'''
-    
+    '''
+    data preprocessing library
+    '''
+
 
 
 
     def nan_plot(df):
+        '''
+        Visualise missing data in pandas.DataFrame
+        '''
+
         plt.figure(figsize=(int(len(df.columns)/4) if len(df.columns)>30 else 10, 10))
         plt.pcolor(df.isnull(), cmap='Blues_r')
         plt.yticks([int(el*(len(df)/10)) for el in range(0, 10)])
@@ -55,7 +61,11 @@ class Snaplib:
 
 
     def cleane(df, target=None, verbose=True):
-        '''drop_duplicates, drop rows with nan in target, drop column with 1 unique value'''
+        '''
+        drop_duplicates, 
+        drop rows with nan in target, 
+        drop column with 1 unique value
+        '''
         
         # DROP DUPLICATES
         start_shape = df.shape
@@ -109,6 +119,26 @@ class Snaplib:
 
 
     def train_test_split_balanced(df, target_feature, test_size=0.33, random_state=0, research_iter=0):
+        ''' 
+        Split the data with the distribution as close as possible 
+        to the same in both the train set and the test set, and not only for the target column, 
+        but also for all other columns.
+        
+        1) The input should be a whole DataFrame. It's the first positional argument.
+        2) And the second positional argument should be the name of the target feature as a string.
+        3) This function has internal testing.
+        In this way you can testing the usefulness of the custom split.
+        The first test performing with a random_state values from 0 to research_iter argument by sklearn.model_selection.train_test_split.
+        Before output performing a final testing.
+
+        You can perform testing by specifying the value of the research_iter argument > 0.
+
+        4) If you are convinced that the function is useful. You can silence the function.
+        Set the research_iter arguments to 0 (zero).
+
+        5) The number of possible random_state is an equivalent to 1/test_size.
+        6) The necessary libraries are integrated at the beginning of the function.
+        '''
         
         CLASSIFIER_FOR_UNIQUE_VALUES_LESS_THAN = 50
         df_count = pd.DataFrame()
@@ -291,6 +321,15 @@ class Snaplib:
                     verbose = 1,
                     stacking = 0
                     ):
+        ''' 
+        Imputing of missing values (np.nan) in tabular data, not TimeSeries.
+
+        if set target = column_name(str type) It will be predicted as latest column in cycle of columns with np.NaN¶
+        if set verbose = True algorithm run tests and print results of tests for decision making.
+        if set stacking = True algorithm apply ensemble lightgbm, catboost, xgboost, else lightgbm only. 
+        And ensemble decrise train/test leakage.
+        '''
+            
         
         encoder_pool = {}
         decoder_pool = {}
@@ -507,7 +546,7 @@ class Snaplib:
 
             
                 
-                
+            # split for testing
             if feature_type_target == 'object' and last_item < 2:
                 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.5, random_state=0)
             elif feature_type_target == 'object' and last_item < 3:
