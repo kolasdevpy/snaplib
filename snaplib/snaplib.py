@@ -44,7 +44,7 @@ class Snaplib:
         Get pandas.DataFrame with information about missing data in columns
 
         Use case:
-        missing_infodf = Snaplib.nan_info(df)
+        missing_info_df = Snaplib.nan_info(df)
         '''
 
         data_info = pd.DataFrame(index=df.columns)
@@ -97,7 +97,7 @@ class Snaplib:
         drop column with 1 unique value
 
         Use case:
-        df = Snaplib.cleane(df, targetNone, verbose=True)
+        df = Snaplib.cleane(df, target_name, verbose=True)
         
         '''
         
@@ -165,22 +165,22 @@ class Snaplib:
         but also for all other columns.
 
         Use case:
-        train_X, test_X, train_y, test_y = Snaplib.train_test_split_balanced(df, target_feature, test_size=0.33, random_state=0, research_iter=0)
+        train_X, test_X, train_y, test_y = Snaplib.train_test_split_balanced(df, target_name, test_size=0.2, random_state=0, research_iter=0)
         
         1) The input should be a whole DataFrame. It's the first positional argument.
         2) And the second positional argument should be the name of the target feature as a string.
-        3) This function has internal testing.
+        3) This method has internal testing.
         In this way you can testing the usefulness of the custom split.
         The first test performing with a random_state values from 0 to research_iter argument by sklearn.model_selection.train_test_split.
         Before output performing a final testing.
 
         You can perform testing by specifying the value of the research_iter argument > 0.
 
-        4) If you are convinced that the function is useful. You can silence the function.
+        4) If you are convinced that the method is useful. You can silence the method.
         Set the research_iter arguments to 0 (zero).
 
         5) The number of possible random_state is an equivalent to 1/test_size.
-        6) The necessary libraries are integrated at the beginning of the function.
+        6) The necessary libraries are integrated at the beginning of the method.
         '''
         
         CLASSIFIER_FOR_UNIQUE_VALUES_LESS_THAN = 20
@@ -225,7 +225,7 @@ class Snaplib:
                 print(f'Regression MAE with random_state from 0 to {research_iter - 1}:')
             else:
                 print('Classification test by sklearn.model_selection.train_test_split  with stratify=y:\n')
-                print(f'Target function has {len(y.value_counts())} unique values.')
+                print(f'Target feature has {len(y.value_counts())} unique values.')
                 for random_state in range(0,research_iter):
                     train_X, test_X, train_y, test_y = train_test_split(X, y, test_size=test_size, random_state=random_state, stratify=y)
                     RESULTS.loc[random_state, 'score'] = classification_accuracy(train_X, test_X, train_y, test_y)
