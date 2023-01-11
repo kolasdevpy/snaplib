@@ -335,7 +335,7 @@ class Snaplib:
         Imputing of missing values (np.nan) in tabular data, not TimeSeries.
 
         Use case:
-        df = Snaplib.recover_data(df, target = None, verbose = 1, stacking = 0)
+        df = Snaplib.recover_data(df, verbose=True, stacking=True)
 
         if set verbose = True algorithm run tests and print results of tests for decision making.
         if set stacking = True algorithm apply ensemble lightgbm, catboost, xgboost, else lightgbm only. 
