@@ -13,6 +13,6 @@ ____________________________________________
 
 # PyPi
 
-!pip install snaplib
-from snaplib.snaplib import Snaplib
-sl = Snaplib()
+!pip install snaplib     
+from snaplib.snaplib import Snaplib     
+sl = Snaplib()    
