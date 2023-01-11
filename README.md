@@ -14,11 +14,15 @@ ____________________________________________
 # PyPi
 
 !pip install snaplib     
+
+
+
+# Use cases
 from snaplib.snaplib import Snaplib     
 sl = Snaplib()    
        
-
-       
+     
+      
 missing_info_df = sl.nan_info(df)     
       
 sl.nan_plot(df)      
