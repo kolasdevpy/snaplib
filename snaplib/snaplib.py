@@ -39,7 +39,34 @@ class Snaplib:
 
 
 
-    def nan_plot(df):
+    def nan_info(self, df):
+        '''
+        Get pandas.DataFrame with information about missing data in columns
+
+        Use case:
+        missing_infodf = Snaplib.nan_info(df)
+        '''
+
+        data_info = pd.DataFrame(index=df.columns)
+        try:
+            data_info['NaN_counts'] = df[[col for col in df.columns if df[col].isna().sum() > 0]].isna().sum().sort_values(ascending = True)
+            data_info['NaN_percent'] = data_info['NaN_counts'].apply(lambda x: round((x/len(df))*100, 2))
+            data_info['col_type'] = df.dtypes
+            data_info = data_info.sort_values(by=['NaN_counts'], ascending=True)
+        except:
+            return data_info
+        return data_info
+
+
+
+
+
+
+
+
+
+
+    def nan_plot(self, df):
         '''
         Visualise missing data in pandas.DataFrame
 
@@ -62,8 +89,8 @@ class Snaplib:
 
 
 
-
-    def cleane(df, target=None, verbose=True):
+   
+    def cleane(self, df, target=None, verbose=True):
         '''
         drop_duplicates, 
         drop rows with nan in target, 
@@ -113,7 +140,7 @@ class Snaplib:
         if verbose:
             print(f'shape: {df.shape}\n')
             print(f'\nFinish shape: {df.shape}\n')
-            Snaplib.nan_plot(df)
+            self.nan_plot(df)
         return df
 
 
@@ -125,9 +152,14 @@ class Snaplib:
 
 
 
-    def train_test_split_balanced(df, target_feature, test_size=0.33, random_state=0, research_iter=0):
+    def train_test_split_balanced(self, 
+                                  df, 
+                                  target_feature, 
+                                  test_size=0.2, 
+                                  random_state=0, 
+                                  research_iter=0
+                                  ):
         ''' 
-
         Split the data with the distribution as close as possible 
         to the same in both the train set and the test set, and not only for the target column, 
         but also for all other columns.
@@ -151,7 +183,7 @@ class Snaplib:
         6) The necessary libraries are integrated at the beginning of the function.
         '''
         
-        CLASSIFIER_FOR_UNIQUE_VALUES_LESS_THAN = 50
+        CLASSIFIER_FOR_UNIQUE_VALUES_LESS_THAN = 20
         df_count = pd.DataFrame()
         
         
@@ -314,7 +346,6 @@ class Snaplib:
             for column in train_X.columns:
                 visualize(train_X[column], test_X[column], column, ' train_X', ' test_X')
 
-        
         return train_X, test_X, train_y, test_y
 
 
@@ -325,11 +356,10 @@ class Snaplib:
 
 
 
-
-    def recover_data(
-                    data_input_0, 
-                    verbose = 1,
-                    stacking = 0
+    def recover_data(self,
+                     df_0, 
+                     verbose = 1,
+                     stacking = 0, 
                     ):
         ''' 
         Imputing of missing values (np.nan) in tabular data, not TimeSeries.
@@ -342,7 +372,6 @@ class Snaplib:
         And ensemble decrise train/test leakage.
         '''
             
-        
         encoder_pool = {}
         decoder_pool = {}
         encoded_columns = []
@@ -350,18 +379,7 @@ class Snaplib:
         CLASS_VALUE_COUNTS = 20
         miss_indeces = None
 
-        
-        
-        def get_data_info(df):
-            data_info = pd.DataFrame(index=df.columns)
-            try:
-                data_info['NaN_counts'] = df[[col for col in df.columns if df[col].isna().sum() > 0]].isna().sum().sort_values(ascending = True)
-                data_info['NaN_percent'] = data_info['NaN_counts'].apply(lambda x: round((x/len(df))*100, 2))
-                data_info['col_type'] = df.dtypes
-                data_info = data_info.sort_values(by=['NaN_counts'], ascending=True)
-            except:
-                return data_info
-            return data_info
+
         
         
         def encode_column(df, enc_pool, dec_pool, column):
@@ -458,43 +476,43 @@ class Snaplib:
         # main
         init_time = datetime.datetime.now()
         
-        data_input = data_input_0.copy()
+        df = df_0.copy()
 
         if verbose:
-            Snaplib.nan_plot(data_input)
+            self.nan_plot(df)
                 
-        data_info = get_data_info(data_input)
+        data_info = self.nan_info(df)
         if verbose:
             print('\n\n\n', data_info, '\n\n\n')
         
-        all_features = list(data_input.columns)
-        data_input_indeces = list(data_input.index)
-        data_input.reset_index(drop=True, inplace = True)
+        all_features = list(df.columns)
+        df_indeces = list(df.index)
+        df.reset_index(drop=True, inplace = True)
         
         all_miss_features = list(data_info.index[data_info['NaN_counts'] > 0])
         
                 
         # a simple encoding
-        for col in data_input.columns:
+        for col in df.columns:
             feature_type = data_info.loc[col, 'col_type']
             if feature_type == 'object' or feature_type == 'bool':            
-                data_input[col] = encode_column(data_input[[col]], encoder_pool, decoder_pool, col)
+                df[col] = encode_column(df[[col]], encoder_pool, decoder_pool, col)
                 encoded_columns.append(col)
             else:
                 # object column with NaN sometimes has type float64
                 try:
-                    data_input.loc[:, col] = data_input.loc[:, col] + 0
+                    df.loc[:, col] = df.loc[:, col] + 0
                 except:
-                    data_input[col] = data_input[col].astype('object')
-                    data_input[col] = encode_column(data_input[[col]], encoder_pool, decoder_pool, col)
+                    df[col] = df[col].astype('object')
+                    df[col] = encode_column(df[[col]], encoder_pool, decoder_pool, col)
                     encoded_columns.append(col)
         
         
         # get continuous & discrete features
         continuous_features = []
         discrete_features = []
-        for col in data_input.columns:
-            count_val = len(data_input[col].value_counts())
+        for col in df.columns:
+            count_val = len(df[col].value_counts())
             if count_val > CLASS_VALUE_COUNTS:
                 continuous_features.append(col)
             else:
@@ -511,21 +529,21 @@ class Snaplib:
             predictors.remove(target_now)
             
             continuous_features_now = get_columns(continuous_features, target_now)
-            discrete_features_now = get_columns(discrete_features, target_now)
+            # discrete_features_now = get_columns(discrete_features, target_now)
             
             # indexes of missing data in target_now (data for prediction)
-            miss_indeces = list((data_input[pd.isnull(data_input[target_now])]).index)
+            miss_indeces = list((df[pd.isnull(df[target_now])]).index)
             count_miss_values = len(miss_indeces)
 
             # data without NaN rows (X data for train & evaluation of model)
-            work_indeces = list(set(data_input_indeces) - set(miss_indeces))
+            work_indeces = list(set(df_indeces) - set(miss_indeces))
             
             # X data for predict target NaNs
-            miss_df = data_input.loc[miss_indeces, predictors]
+            miss_df = df.loc[miss_indeces, predictors]
             miss_df = normalize_data(miss_df, continuous_features_now)
             
             # X data for train and model evaluation 
-            work_df = data_input.iloc[work_indeces, : ]
+            work_df = df.iloc[work_indeces, : ]
             work_df = normalize_data(work_df, continuous_features_now)
             
             X = work_df[predictors]
@@ -552,6 +570,7 @@ class Snaplib:
 
             
                 
+
             # split for testing
             if feature_type_target == 'object' and last_item < 2:
                 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.5, random_state=0)
@@ -563,6 +582,9 @@ class Snaplib:
                 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0, stratify=y)
             else:
                 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0)
+
+            # df_conctd = pd.concat([X, y], axis=1)
+            # X_train, X_test, y_train, y_test = self.train_test_split_balanced(df_conctd, target_now, test_size=0.2, random_state=0, research_iter=0)
 
             
             # Info
@@ -603,7 +625,7 @@ class Snaplib:
 
                 pred_miss = [int(i) for i in pred_miss]
                 pred_miss = labelencoder.inverse_transform(pred_miss)
-                imput_missing_value_to_main_df(data_input, miss_indeces, pred_miss, target_now)
+                imput_missing_value_to_main_df(df, miss_indeces, pred_miss, target_now)
                 counter_predicted_values += len(miss_indeces)
             
             # PREDICTIONS REGRESSOR
@@ -631,9 +653,9 @@ class Snaplib:
                     print(f'first 10 y_test: {y_test}')
                     print(f'first 10 y_pred: {y_pred}\n')
                     print(f'MAE for {target_now}: {MAE}')
-                    print(f'min for {target_now}: {data_input[target_now].min()}')
-                    print(f'avg for {target_now}: {data_input[target_now].mean()}')
-                    print(f'max for {target_now}: {data_input[target_now].max()}\n')
+                    print(f'min for {target_now}: {df[target_now].min()}')
+                    print(f'avg for {target_now}: {df[target_now].mean()}')
+                    print(f'max for {target_now}: {df[target_now].max()}\n')
                     
 
 
@@ -643,7 +665,7 @@ class Snaplib:
                 pred_miss = (pred_miss * (max_y - min_y)) + min_y
                 
                 
-                imput_missing_value_to_main_df(data_input, miss_indeces, list(pred_miss), target_now)
+                imput_missing_value_to_main_df(df, miss_indeces, list(pred_miss), target_now)
                 counter_predicted_values += len(miss_indeces)
                 
                 
@@ -674,25 +696,25 @@ class Snaplib:
             
         # return states to their initial states
         for col in encoded_columns:
-            data_input[col] = decode_column(data_input[[col]], decoder_pool, col)
+            df[col] = decode_column(df[[col]], decoder_pool, col)
             
-        for col in data_input.columns:
-            data_input[col] = data_input[col].astype(data_info.loc[col, 'col_type'])
+        for col in df.columns:
+            df[col] = df[col].astype(data_info.loc[col, 'col_type'])
                     
-        data_input.index = data_input_indeces
+        df.index = df_indeces
 
         if verbose:
-            Snaplib.nan_plot(data_input)
+            self.nan_plot(df)
             print('\n\n\n')
-            data_info = get_data_info(data_input)
+            data_info = self.nan_info(df)
             print(data_info)
             print('\n\n\n')
             print(f'{counter_predicted_values} values have been predicted and replaced. \
-            {(counter_predicted_values*100/(data_input.shape[0]*data_input.shape[1]))} % of data')
+            {(counter_predicted_values*100/(df.shape[0]*df.shape[1]))} % of data')
             print('\n')
             finish_time = datetime.datetime.now()
             requared = finish_time - init_time
             print(f'Required time totally: {str(requared)}\n\n')
         
 
-        return data_input
+        return df
