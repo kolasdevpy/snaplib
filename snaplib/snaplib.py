@@ -265,9 +265,9 @@ class Snaplib:
     #         test_indexes = list(filter(lambda x: not (x + increment) % every_n_el, X.index))
 
             train_X = X.iloc[train_indexes]
-            train_y = y.iloc[train_indexes]
+            train_y = y.iloc[train_indexes, 0]
             test_X = X.iloc[test_indexes]
-            test_y = y.iloc[test_indexes]
+            test_y = y.iloc[test_indexes, 0]
                     
             return train_X, test_X, train_y, test_y
         
@@ -434,6 +434,7 @@ class Snaplib:
 
         
         def predict(X__train, y__train, X__pred, all_algorithms, values_counted=None):
+
             if len(pd.Series(y__train).value_counts()) == 1:
                 all_algorithms = [all_algorithms[0]]
                 
@@ -456,7 +457,7 @@ class Snaplib:
                 y_hat[y_hat == -np.inf] = 0
                 y_hat[y_hat == np.inf] = 0
     #         print(stacked_predicts)
-            del stacked_predicts
+            # del stacked_predicts
             return y_hat
 
         
@@ -583,7 +584,12 @@ class Snaplib:
             else:
                 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0)
 
-            # df_conctd = pd.concat([X, y], axis=1)
+
+
+
+
+            # else:
+            # df_conctd = pd.concat([X, pd.Series(y, name=target_now)], axis=1)
             # X_train, X_test, y_train, y_test = self.train_test_split_balanced(df_conctd, target_now, test_size=0.2, random_state=0, research_iter=0)
 
             
@@ -620,7 +626,6 @@ class Snaplib:
                     print(f'Classification Report:\n')
                     print(classification_report(y_test, pred_test), '\n')
 
-    #             ADVANCED  alg = LGBMClassifier(n_jobs=-1, random_state=0, class_weight=class_weight)                
                 pred_miss = predict(X_train, y_train, miss_df, algorithms, len_target_values_counted)
 
                 pred_miss = [int(i) for i in pred_miss]
