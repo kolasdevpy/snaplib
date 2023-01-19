@@ -35,8 +35,47 @@ class Snaplib:
     '''
     data preprocessing library
     '''
+    
+    def __init__(self, encoder_pool=dict(), decoder_pool=dict(), encoded_columns=list()):
+        self.encoder_pool = encoder_pool
+        self.decoder_pool = decoder_pool
+        self.encoded_columns = encoded_columns
+    
 
 
+    
+    @property
+    def encoder_pool(self):
+        return self.__encoder_pool
+
+    @encoder_pool.setter
+    def encoder_pool(self, encoder_pool):
+        self.__encoder_pool = encoder_pool
+    
+    
+    
+    @property
+    def decoder_pool(self):
+        return self.__decoder_pool
+
+    @decoder_pool.setter
+    def decoder_pool(self, decoder_pool):
+        self.__decoder_pool = decoder_pool
+    
+    
+    
+    @property
+    def encoded_columns(self):
+        return self.__encoded_columns
+
+    @encoded_columns.setter
+    def encoded_columns(self, encoded_columns):
+        self.__encoded_columns = encoded_columns
+        
+        
+    
+        
+        
 
 
     def nan_info(self, df):
@@ -110,21 +149,27 @@ class Snaplib:
         df.reset_index(drop=True, inplace=True)
         dr_dupl_shape = df.shape
         if verbose:
-            print(f'{start_shape[0] - dr_dupl_shape[0]} - rows have been dropped')
+            print(f'{start_shape[0] - dr_dupl_shape[0]} rows have been dropped')
             print(f'shape: {dr_dupl_shape}\n')
 
         # DROP COLUMNS with 1 unique value
             print('DROP COLUMNS with 1 unique value:')
+            
+            count_drop_columns = 0
         for col in df.columns:
-            unique_array = df[col].unique()
+            unique_array = np.array(df[col].unique())
+
             if len(unique_array) == 1:
+                count_drop_columns += 1
                 df.drop([col], inplace=True, axis=1)
                 if verbose:
-                    print(f'column "{col}" cnontains 1 unique value -> have been dropped')
-            elif len(unique_array) == 2 and np.any(np.isnan(unique_array)):
+                    print(f'column "{col}" cnontains 1 unique value - has been dropped')
+            elif len(unique_array) == 2 and np.any(pd.isnull(df[col])):
                 if verbose:
                     print(f'!!! column "{col}" cnontains 1 unique value and np.nan')
+        
         if verbose:
+            print(f'{count_drop_columns} columns have been dropped')
             print(f'shape: {df.shape}\n')
 
         # DROP ROWS with NaN IN TARGET
@@ -134,7 +179,7 @@ class Snaplib:
             nan = df[df[target].isnull()]
             indeces = list(nan.index)
             if verbose:
-                print(f'{len(indeces)} - rows have been dropped')
+                print(f'{len(indeces)} rows have been dropped')
             df = df.drop(df.index[indeces])
             df.reset_index(drop=True, inplace=True)
         if verbose:
@@ -143,11 +188,124 @@ class Snaplib:
             self.nan_plot(df)
         return df
 
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    def encode_column(self, df, column):
+        '''
+        encode one column in dataframe
+
+        Use case:
+        df = Snaplib.encode_column(df, column_name_str)
+        '''
+        self.encoder_pool[column] = {}
+        self.decoder_pool[column] = {}
+        not_nan_index=df[df[column].notnull()].index
+        values_set = list(set(list(df.loc[not_nan_index, column])))
+        value = 0.0
+        for el in values_set:
+            self.encoder_pool[column][el] = value
+            self.decoder_pool[column][value] = el
+            value += 1
+        df[column] = df[column].map(self.encoder_pool[column])
+        df[column] = df[column].astype('float64')
+        return df
+    
+    
 
 
 
 
 
+
+    
+    
+    def decode_column(self, df, column):
+        '''
+        decode one column in dataframe
+
+        Use case:
+        df = Snaplib.decode_column(df, column_name_str)
+        '''
+        df[column] = df[column].map(self.decoder_pool[column])
+        df[column] = df[column].astype('object')
+        return df
+    
+    
+    
+    
+    
+
+
+
+
+
+    def encode_dataframe(self, df):
+        '''
+        encode a dataframe
+
+        Use case:
+        df = Snaplib.encode_dataframe(df)
+        '''
+        self.encoder_pool = {}
+        self.decoder_pool = {}
+        self.encoded_columns = []
+
+        types = df.dtypes
+        for col in df.columns:
+            feature_type = types[col]
+            if feature_type == 'object' or feature_type == 'bool':            
+                df[col] = self.encode_column(df[[col]], col)
+                self.encoded_columns.append(col)
+            else:
+                # object type column with NaN sometimes has type float64
+                try:
+                    df.loc[:, col] = df.loc[:, col] + 0
+                except:
+                    df[col] = df[col].astype('object')
+                    df[col] = self.encode_column(df[[col]], col)
+                    self.encoded_columns.append(col)
+        return df
+    
+    
+
+
+
+
+    
+    
+
+    
+    def decode_dataframe(self, df):
+        '''
+        decode a dataframe
+
+        Use case:
+        df = Snaplib.decode_dataframe(df)
+        '''
+        for col in self.encoded_columns:
+            df[col] = self.decode_column(df[[col]], col)
+        return df
+
+
+
+
+    
+    
+    
+    
+    
+    
+    
+    
 
 
 
@@ -372,29 +530,13 @@ class Snaplib:
         And ensemble decrise train/test leakage.
         '''
             
-        encoder_pool = {}
-        decoder_pool = {}
-        encoded_columns = []
+
         counter_predicted_values = 0
         CLASS_VALUE_COUNTS = 20
         miss_indeces = None
 
 
         
-        
-        def encode_column(df, enc_pool, dec_pool, column):
-            enc_pool[column] = {}
-            dec_pool[column] = {}
-            not_nan_index=df[df[column].notnull()].index
-            values_set = list(set(list(df.loc[not_nan_index, column])))
-            value = 0.0
-            for el in values_set:
-                enc_pool[column][el] = value
-                dec_pool[column][value] = el
-                value += 1
-            df[column] = df[column].map(enc_pool[column])
-            df[column] = df[column].astype('float64')
-            return df
         
         
         def get_columns(columns, target_column):
@@ -456,8 +598,6 @@ class Snaplib:
                 y_hat = stacked_predicts.loc[:, 'y_hat_final']
                 y_hat[y_hat == -np.inf] = 0
                 y_hat[y_hat == np.inf] = 0
-    #         print(stacked_predicts)
-            # del stacked_predicts
             return y_hat
 
         
@@ -466,10 +606,7 @@ class Snaplib:
             return df
         
         
-        def decode_column(df, dec_pool, column):
-            df[column] = df[column].map(dec_pool[column])
-            df[column] = df[column].astype('object')
-            return df
+
         
         
         
@@ -494,19 +631,8 @@ class Snaplib:
         
                 
         # a simple encoding
-        for col in df.columns:
-            feature_type = data_info.loc[col, 'col_type']
-            if feature_type == 'object' or feature_type == 'bool':            
-                df[col] = encode_column(df[[col]], encoder_pool, decoder_pool, col)
-                encoded_columns.append(col)
-            else:
-                # object column with NaN sometimes has type float64
-                try:
-                    df.loc[:, col] = df.loc[:, col] + 0
-                except:
-                    df[col] = df[col].astype('object')
-                    df[col] = encode_column(df[[col]], encoder_pool, decoder_pool, col)
-                    encoded_columns.append(col)
+        df = self.encode_dataframe(df)
+
         
         
         # get continuous & discrete features
@@ -699,9 +825,8 @@ class Snaplib:
                 print(f'Required time:  {str(requared)}\n')
 
             
-        # return states to their initial states
-        for col in encoded_columns:
-            df[col] = decode_column(df[[col]], decoder_pool, col)
+        # return states to their initial states        
+        df = self.decode_dataframe(df)
             
         for col in df.columns:
             df[col] = df[col].astype(data_info.loc[col, 'col_type'])
