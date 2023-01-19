@@ -5,8 +5,8 @@ ____________________________________________
 
 # user guide
 
-**[Kaggle Notebook](https://www.kaggle.com/code/artyomkolas/snaplib-user-guide?scriptVersionId=116126023)**   
-<https://www.kaggle.com/code/artyomkolas/snaplib-user-guide?scriptVersionId=116126023>
+**[Kaggle Notebook](https://www.kaggle.com/code/artyomkolas/titanic-snaplib-classification/settings?scriptVersionId=116790545)**   
+<https://www.kaggle.com/code/artyomkolas/titanic-snaplib-classification/settings?scriptVersionId=116790545>
 
 
 ____________________________________________

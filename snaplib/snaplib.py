@@ -8,6 +8,7 @@ if not sys.warnoptions:
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
+import seaborn as sns
 
 
 import lightgbm as lgb
@@ -18,7 +19,7 @@ import xgboost as xgb
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error
-from sklearn.metrics import classification_report
+from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.metrics import f1_score
 
 
@@ -480,6 +481,10 @@ class Snaplib:
         if verbose:
             print(*algorithms, sep='\n')
             print('')
+            if str(metric).split('.')[0] == 'functools':
+                metric_name = str(metric).split('function ')[1].split(' ')[0]
+            else:
+                metric_name = metric.__name__
             print("%s %0.6f (std: +/- %0.2f)" % (metric_name, score, results_std))
             print('\n', results, '\n')
 
@@ -945,7 +950,7 @@ class Snaplib:
                 counter_predicted_values += len(miss_indeces)
             
             # PREDICTIONS REGRESSOR
-            elif feature_type_target == 'float64' or feature_type == 'int64':
+            elif feature_type_target == 'float64' or feature_type_target == 'int64':
                 lgb_reg = lgb.LGBMRegressor(n_jobs=-1, random_state=0)
                 algorithms = [lgb_reg]
                 if stacking:
@@ -986,7 +991,7 @@ class Snaplib:
 
             else:
                 if verbose:
-                    print(f"unprocessed feature: {target_now} - {feature_type} type")
+                    print(f"unprocessed feature: {target_now} - {feature_type_target} type")
 
 
             
