@@ -345,7 +345,7 @@ class Snaplib:
     
     
     def predict_stacked(self, 
-                        all_algorithms, 
+                        algorithms_list, 
                         X__train, 
                         y__train, 
                         X__pred, 
@@ -359,7 +359,7 @@ class Snaplib:
         
         Use case:
         y_hat = Snaplib.predict_stacked(
-                                        all_algorithms, 
+                                        algorithms_list, 
                                         X_train, 
                                         y_train, 
                                         X_pred, 
@@ -368,7 +368,7 @@ class Snaplib:
                                         verbose= 0, 1, 2
                                         ):
         
-        all_algorithms = list of algorithms [LGBMClassifier(), XGBClassifier(), CatBoostClassifier()].
+        algorithms_list = list of algorithms [LGBMClassifier(), XGBClassifier(), CatBoostClassifier()].
         X_train and y_train are data for training list of algorithms.
         X_pred is dataframe for prediction.
         y_test optionaly. If exist visualize it as last column on a plot (verbose=2). 
@@ -378,7 +378,7 @@ class Snaplib:
         '''
         stacked_predicts = pd.DataFrame()
         alg_names = []
-        for alg in all_algorithms:
+        for alg in algorithms_list:
             alg_name = alg.__class__.__name__[:3]
             model = alg.fit(X__train, y__train)
             y_hat = model.predict(X__pred)
@@ -424,7 +424,7 @@ class Snaplib:
         Use case:
         y_hat = Snaplib.cross_val(algorithms, k_fold_dict, metric, task, cv, verbose=0):
         
-        all_algorithms = list of algorithms like [LGBMClassifier(), XGBClassifier(), CatBoostClassifier()].
+        algorithms_list = list of algorithms like [LGBMClassifier(), XGBClassifier(), CatBoostClassifier()].
         k_fold_dict is a dictionary with the structure:
         
         K_FOLD = 3
@@ -771,14 +771,14 @@ class Snaplib:
             return class_weight
 
         
-        def predict(X__train, y__train, X__pred, all_algorithms, values_counted=None):
+        def predict(X__train, y__train, X__pred, algorithms_list, values_counted=None):
 
             if len(pd.Series(y__train).value_counts()) == 1:
-                all_algorithms = [all_algorithms[0]]
+                algorithms_list = [algorithms_list[0]]
                 
             stacked_predicts = pd.DataFrame()
             stacked_column_names = []
-            for alg in all_algorithms:
+            for alg in algorithms_list:
                 alg_name = str(alg.__class__.__name__)[:3]
                 model = alg.fit(X__train, y__train.ravel())
                 y_hat = model.predict(X__pred).ravel()
