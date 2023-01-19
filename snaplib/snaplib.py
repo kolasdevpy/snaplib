@@ -42,7 +42,7 @@ class Snaplib:
         self.encoded_columns = encoded_columns
     
 
-
+    
     
     @property
     def encoder_pool(self):
@@ -73,6 +73,8 @@ class Snaplib:
         self.__encoded_columns = encoded_columns
         
         
+    
+    
     
         
         
@@ -220,12 +222,11 @@ class Snaplib:
         return df
     
     
-
-
-
-
-
-
+    
+    
+    
+    
+    
     
     
     def decode_column(self, df, column):
@@ -243,8 +244,8 @@ class Snaplib:
     
     
     
-
-
+    
+    
 
 
 
@@ -276,10 +277,11 @@ class Snaplib:
         return df
     
     
-
-
-
-
+    
+    
+    
+    
+    
     
     
 
@@ -296,9 +298,198 @@ class Snaplib:
         return df
 
 
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    def k_folds_split(self, df, target_name, k):
+
+        k_fold_dict = { 
+                        'train_X' : [],
+                        'test_X'  : [], 
+                        'train_y' : [],
+                        'test_y'  : [],
+                      }
+
+
+        for i in range(0, k):
+            train_X, test_X, train_y, test_y = self.train_test_split_balanced(df, 
+                                                                              target_name, 
+                                                                              random_state=i, 
+                                                                              test_size=1/k, 
+                                                                              research_iter=0
+                                                                              )
+            k_fold_dict['train_X'].append(train_X)
+            k_fold_dict['test_X'].append(test_X)
+            k_fold_dict['train_y'].append(train_y)
+            k_fold_dict['test_y'].append(test_y)
+
+        return k_fold_dict
 
 
     
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    def predict_stacked(self, 
+                        all_algorithms, 
+                        X__train, 
+                        y__train, 
+                        X__pred, 
+                        y__test=None, 
+                        task='clsf', 
+                        verbose=0
+                        ):
+        
+        ''' 
+        Prediction method for list of algorithms.
+        
+        Use case:
+        y_hat = Snaplib.predict_stacked(
+                                        all_algorithms, 
+                                        X_train, 
+                                        y_train, 
+                                        X_pred, 
+                                        y_test or None, 
+                                        task='clsf' or 'regr', 
+                                        verbose= 0, 1, 2
+                                        ):
+        
+        all_algorithms = list of algorithms [LGBMClassifier(), XGBClassifier(), CatBoostClassifier()].
+        X_train and y_train are data for training list of algorithms.
+        X_pred is dataframe for prediction.
+        y_test optionaly. If exist visualize it as last column on a plot (verbose=2). 
+        task='clsf' or 'regr', classification or regression
+        verbose = 0 mute, 1 verbose.
+
+        '''
+        stacked_predicts = pd.DataFrame()
+        alg_names = []
+        for alg in all_algorithms:
+            alg_name = alg.__class__.__name__[:3]
+            model = alg.fit(X__train, y__train)
+            y_hat = model.predict(X__pred)
+            if task =='clsf':
+                stacked_predicts[alg_name] = y_hat.astype('int64')
+            else:
+                stacked_predicts[alg_name] = y_hat
+            alg_names.append(alg_name)
+
+        if task =='clsf':
+            stacked_predicts['Y_HAT_STACKED'] = stacked_predicts[alg_names].mode(axis=1)[0].astype('int64')
+            if y__test is not None:
+                stacked_predicts['Y_TEST'] = y__test.values.astype('int64')
+        else:
+            stacked_predicts['Y_HAT_STACKED'] = stacked_predicts[alg_names].mean(axis=1)
+            if y__test is not None:
+                stacked_predicts['Y_TEST'] = y__test.values
+
+
+        y_hat = stacked_predicts.loc[:, 'Y_HAT_STACKED']
+        if verbose:
+            plt.figure(figsize=(5, 10))
+            sns.heatmap(stacked_predicts[-1000:], cbar=False)
+            plt.show()
+        return y_hat
+
+
+    
+    
+    
+    
+    
+    
+    
+
+
+
+    def cross_val(self, algorithms, k_fold_dict, metric, task, cv, verbose=0):
+        
+        ''' 
+        Cross Validation method for list of algorithms.
+        
+        Use case:
+        y_hat = Snaplib.cross_val(algorithms, k_fold_dict, metric, task, cv, verbose=0):
+        
+        all_algorithms = list of algorithms like [LGBMClassifier(), XGBClassifier(), CatBoostClassifier()].
+        k_fold_dict is a dictionary with the structure:
+        
+        K_FOLD = 3
+        k_fold_dict = { 
+                        'train_X' : [df_0, df_1, df_2],
+                        'test_X'  : [df_0, df_1, df_2],
+                        'train_y' : [seri_0, seri_1, seri_2],
+                        'test_y'  : [seri_0, seri_1, seri_2],
+                       }
+              
+        metric is a metric like f1_score or mean_absolute_error.
+        task='clsf' or 'regr', classification or regression.
+        cv is num K_FOLD integer 
+        verbose = 0 mute, 1 verbose.
+
+        '''
+
+        results=[]
+        test_y_all = np.array([])
+        pred_all = np.array([])
+        if task == 'clsf':
+            cm_base = np.array([[0, 0], [0, 0]])
+
+
+        for k in range(0, cv):
+            if len(algorithms) > 1:
+                pred = self.predict_stacked(algorithms, 
+                                            k_fold_dict['train_X'][k], 
+                                            k_fold_dict['train_y'][k], 
+                                            k_fold_dict['test_X'][k], 
+                                            k_fold_dict['test_y'][k], 
+                                            task,
+                                            verbose
+                                           )
+            else:
+                alg = algorithms[0]
+                alg.fit(k_fold_dict['train_X'][k], k_fold_dict['train_y'][k])
+                pred = alg.predict(k_fold_dict['test_X'][k])
+
+            if verbose:
+                if task == 'clsf':
+                    cm = confusion_matrix(k_fold_dict['test_y'][k], pred)
+                    cm_base = cm_base + cm
+
+            test_y_all = np.concatenate(([test_y_all, k_fold_dict['test_y'][k]]), axis=None)
+            pred_all = np.concatenate((pred_all, pred), axis=None)
+
+            score = metric(k_fold_dict['test_y'][k], pred)
+            results.append(score)
+
+        results_std = np.std(results)
+        score = sum(results) / len(results)
+
+        if verbose:
+            print(*algorithms, sep='\n')
+            print('')
+            print("%s %0.6f (std: +/- %0.2f)" % (metric_name, score, results_std))
+            print('\n', results, '\n')
+
+            if task == 'clsf':
+                print('\n', classification_report(test_y_all, pred_all), '\n')
+                plt.figure(figsize=(3, 3))
+                sns.heatmap(cm_base, annot=True, cmap="Blues", fmt='.0f',  cbar=False)
+                plt.show()
+
+        return score
     
     
     
@@ -539,7 +730,7 @@ class Snaplib:
         
         
         
-        def get_columns(columns, target_column):
+        def get_predictors(columns, target_column):
             columns_now = columns[:]
             if target_column in columns:
                 columns_now.remove(target_column)
@@ -608,9 +799,6 @@ class Snaplib:
         
 
         
-        
-        
-        
         # main
         init_time = datetime.datetime.now()
         
@@ -629,11 +817,8 @@ class Snaplib:
         
         all_miss_features = list(data_info.index[data_info['NaN_counts'] > 0])
         
-                
         # a simple encoding
         df = self.encode_dataframe(df)
-
-        
         
         # get continuous & discrete features
         continuous_features = []
@@ -655,8 +840,8 @@ class Snaplib:
             predictors = all_features[:]
             predictors.remove(target_now)
             
-            continuous_features_now = get_columns(continuous_features, target_now)
-            # discrete_features_now = get_columns(discrete_features, target_now)
+            continuous_features_now = get_predictors(continuous_features, target_now)
+            # discrete_features_now = get_predictors(discrete_features, target_now)
             
             # indexes of missing data in target_now (data for prediction)
             miss_indeces = list((df[pd.isnull(df[target_now])]).index)
@@ -787,7 +972,6 @@ class Snaplib:
                     print(f'min for {target_now}: {df[target_now].min()}')
                     print(f'avg for {target_now}: {df[target_now].mean()}')
                     print(f'max for {target_now}: {df[target_now].max()}\n')
-                    
 
 
     #             ADVANCED  alg = LGBMRegressor(n_jobs=-1, random_state=0)        
@@ -798,7 +982,6 @@ class Snaplib:
                 
                 imput_missing_value_to_main_df(df, miss_indeces, list(pred_miss), target_now)
                 counter_predicted_values += len(miss_indeces)
-                
                 
 
             else:
