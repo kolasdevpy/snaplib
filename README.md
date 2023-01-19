@@ -32,3 +32,13 @@ df = sl.cleane(df, target_name, verbose=True)
 train_X, test_X, train_y, test_y = sl.train_test_split_balanced(df, target_name, test_size=0.2, random_state=0, research_iter=0)     
       
 df = sl.recover_data(df, verbose=True, stacking=True)    
+
+df = sl.encode_dataframe(df)     
+
+df = sl.decode_dataframe(df)     
+
+k_fold_dict_data = sl.k_folds_split(df, target_name_str, k)      
+
+y_hat = sl.predict_stacked(all_algorithms, X_train, y_train, X_pred, y_test=None, task='clsf', verbose=0)     
+
+score = sl.cross_val(algorithms_list, k_fold_dict_data, metric, task, cv, verbose=0)      
