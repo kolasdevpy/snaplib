@@ -39,6 +39,6 @@ df = sl.decode_dataframe(df)
 
 k_fold_dict_data = sl.k_folds_split(df, target_name_str, k)      
 
-y_hat = sl.predict_stacked(algorithms_list, X_train, y_train, X_pred, y_test=None, task='clsf', verbose=0)     
+y_hat = sl.fit_predict_stacked(algorithms_list, X_train, y_train, X_pred, y_test=None, task='clsf', verbose=0)     
 
 score = sl.cross_val(algorithms_list, k_fold_dict_data, metric, task, cv, verbose=0)      

@@ -54,7 +54,6 @@ class Snaplib:
         self.__encoder_pool = encoder_pool
     
     
-    
     @property
     def decoder_pool(self):
         return self.__decoder_pool
@@ -62,7 +61,6 @@ class Snaplib:
     @decoder_pool.setter
     def decoder_pool(self, decoder_pool):
         self.__decoder_pool = decoder_pool
-    
     
     
     @property
@@ -86,8 +84,10 @@ class Snaplib:
         Get pandas.DataFrame with information about missing data in columns
 
         Use case:
-        missing_info_df = Snaplib.nan_info(df)
+        missing_info_df = Snaplib().nan_info(df)
         '''
+        if not isinstance(df, pd.core.frame.DataFrame):
+            raise TypeError('The df must be a pandas.core.frame.DataFrame instance.')
 
         data_info = pd.DataFrame(index=df.columns)
         try:
@@ -113,8 +113,11 @@ class Snaplib:
         Visualise missing data in pandas.DataFrame
 
         Use case:
-        Snaplib.nan_plot(df)
+        Snaplib().nan_plot(df)
         '''
+
+        if not isinstance(df, pd.core.frame.DataFrame):
+            raise TypeError('The df must be a pandas.core.frame.DataFrame instance.')
 
         plt.figure(figsize=(int(len(df.columns)/4) if len(df.columns)>30 else 10, 10))
         plt.pcolor(df.isnull(), cmap='Blues_r')
@@ -139,9 +142,17 @@ class Snaplib:
         drop column with 1 unique value
 
         Use case:
-        df = Snaplib.cleane(df, target_name, verbose=True)
+        df = Snaplib().cleane(df, target_name, verbose=True)
         
         '''
+
+        if not isinstance(df, pd.core.frame.DataFrame):
+            raise TypeError('The df must be a pandas.core.frame.DataFrame instance.')
+        if target is not None:
+            if type(target) != str:
+                raise TypeError('target must be of str type.')
+        if type(verbose) != int and type(verbose) != bool:
+            raise TypeError('verbose must be of int type or bool.')
         
         # DROP DUPLICATES
         start_shape = df.shape
@@ -207,8 +218,15 @@ class Snaplib:
         encode one column in dataframe
 
         Use case:
-        df = Snaplib.encode_column(df, column_name_str)
+        df = Snaplib().encode_column(df, column_name_str)
         '''
+
+        if not isinstance(df, pd.core.frame.DataFrame):
+            raise TypeError('The df must be a pandas.core.frame.DataFrame instance.')
+        if type(column) != str:
+            raise TypeError('column must be of str type.')
+
+
         self.encoder_pool[column] = {}
         self.decoder_pool[column] = {}
         not_nan_index=df[df[column].notnull()].index
@@ -235,8 +253,14 @@ class Snaplib:
         decode one column in dataframe
 
         Use case:
-        df = Snaplib.decode_column(df, column_name_str)
+        df = Snaplib().decode_column(df, column_name_str)
         '''
+
+        if not isinstance(df, pd.core.frame.DataFrame):
+            raise TypeError('The df must be a pandas.core.frame.DataFrame instance.')
+        if type(column) != str:
+            raise TypeError('column must be of str type.')
+
         df[column] = df[column].map(self.decoder_pool[column])
         df[column] = df[column].astype('object')
         return df
@@ -255,8 +279,12 @@ class Snaplib:
         encode a dataframe
 
         Use case:
-        df = Snaplib.encode_dataframe(df)
+        df = Snaplib().encode_dataframe(df)
         '''
+
+        if not isinstance(df, pd.core.frame.DataFrame):
+            raise TypeError('The df must be a pandas.core.frame.DataFrame instance.')
+
         self.encoder_pool = {}
         self.decoder_pool = {}
         self.encoded_columns = []
@@ -292,8 +320,13 @@ class Snaplib:
         decode a dataframe
 
         Use case:
-        df = Snaplib.decode_dataframe(df)
+        df = Snaplib().decode_dataframe(df)
         '''
+
+        if not isinstance(df, pd.core.frame.DataFrame):
+            raise TypeError('The df must be a pandas.core.frame.DataFrame instance.')
+
+
         for col in self.encoded_columns:
             df[col] = self.decode_column(df[[col]], col)
         return df
@@ -309,6 +342,28 @@ class Snaplib:
     
     
     def k_folds_split(self, df, target_name, k):
+
+        '''
+        Return a dictionary list of DataFrames and Series for target
+        with next structure:
+
+        k_fold_dict = { 
+                        'train_X' : [train_df_0, train_df_1, ... , train_df_k],
+                        'test_X'  : [etc.], 
+                        'train_y' : [series_0, series_1, ... , series_k],
+                        'test_y'  : [etc.],
+                      }
+
+        Use case:
+        k_fold_dict_data = Snaplib().k_folds_split( df, target_name, k)
+        '''
+
+        if not isinstance(df, pd.core.frame.DataFrame):
+            raise TypeError('The df must be a pandas.core.frame.DataFrame instance.')
+        if type(target_name) != str:
+            raise TypeError('target_name must be of str type.')
+        if type(k) != int:
+            raise TypeError('k must be of int type.')
 
         k_fold_dict = { 
                         'train_X' : [],
@@ -344,21 +399,21 @@ class Snaplib:
     
     
     
-    def predict_stacked(self, 
-                        algorithms_list, 
-                        X__train, 
-                        y__train, 
-                        X__pred, 
-                        y__test=None, 
-                        task='clsf', 
-                        verbose=0
-                        ):
+    def fit_predict_stacked(self, 
+                            algorithms_list, 
+                            X__train, 
+                            y__train, 
+                            X__pred, 
+                            y__test=None, 
+                            task='clsf', 
+                            verbose=0
+                            ):
         
         ''' 
         Prediction method for list of algorithms.
         
         Use case:
-        y_hat = Snaplib.predict_stacked(
+        y_hat = Snaplib().fit_predict_stacked(
                                         algorithms_list, 
                                         X_train, 
                                         y_train, 
@@ -376,6 +431,28 @@ class Snaplib:
         verbose = 0 mute, 1 verbose.
 
         '''
+        if type(algorithms_list) != list:
+            raise TypeError('algorithms_list must be of list type.')
+        if not isinstance(X__train, pd.core.frame.DataFrame):
+            raise TypeError('The X__train must be a pandas.core.frame.DataFrame instance.')
+        if not isinstance(X__pred, pd.core.frame.DataFrame):
+            raise TypeError('The X__pred must be a pandas.core.frame.DataFrame instance.')
+
+        if not isinstance(y__train, pd.core.frame.Series) and not isinstance(y__train, np.ndarray):
+            raise TypeError('The y__train must be a pandas.core.frame.Series instance.')
+        if y__test is not None:
+            if not isinstance(y__test, pd.core.frame.Series) and not isinstance(y__test, np.ndarray):
+                raise TypeError('The y__test must be a pandas.core.frame.Series instance or numpy.ndarray.')
+
+        if task !='clsf' and task != 'regr':
+            raise ValueError('Task in fit_predict_stacked() must be "clsf" or "regr".')
+        if len(algorithms_list) == 0:
+            raise ValueError('Algorithms list is empty.')
+
+        if type(verbose) != int and type(verbose) != bool:
+            raise TypeError('verbose must be of int type or bool.')
+
+
         stacked_predicts = pd.DataFrame()
         alg_names = []
         for alg in algorithms_list:
@@ -384,7 +461,7 @@ class Snaplib:
             y_hat = model.predict(X__pred)
             if task =='clsf':
                 stacked_predicts[alg_name] = y_hat.astype('int64')
-            else:
+            elif task=='regr':
                 stacked_predicts[alg_name] = y_hat
             alg_names.append(alg_name)
 
@@ -392,10 +469,11 @@ class Snaplib:
             stacked_predicts['Y_HAT_STACKED'] = stacked_predicts[alg_names].mode(axis=1)[0].astype('int64')
             if y__test is not None:
                 stacked_predicts['Y_TEST'] = y__test.values.astype('int64')
-        else:
+        elif task=='regr':
             stacked_predicts['Y_HAT_STACKED'] = stacked_predicts[alg_names].mean(axis=1)
             if y__test is not None:
                 stacked_predicts['Y_TEST'] = y__test.values
+
 
 
         y_hat = stacked_predicts.loc[:, 'Y_HAT_STACKED']
@@ -422,7 +500,7 @@ class Snaplib:
         Cross Validation method for list of algorithms.
         
         Use case:
-        y_hat = Snaplib.cross_val(algorithms, k_fold_dict, metric, task, cv, verbose=0):
+        y_hat = Snaplib().cross_val(algorithms, k_fold_dict, metric, task, cv, verbose=0):
         
         algorithms_list = list of algorithms like [LGBMClassifier(), XGBClassifier(), CatBoostClassifier()].
         k_fold_dict is a dictionary with the structure:
@@ -442,6 +520,20 @@ class Snaplib:
 
         '''
 
+        if type(algorithms) != list:
+            raise TypeError('The algorithms must be of list type.')
+        if len(algorithms) == 0:
+            raise ValueError('Algorithms list is empty.')
+        if type(k_fold_dict) != dict:
+            raise TypeError('The k_fold_dict must be of dict type.')
+        if task != 'clsf' and task != 'regr':
+            raise ValueError('task must be "clsf" or "regr".')
+        if type(cv) != int:
+            raise TypeError('cv must be of int type.')
+        if type(verbose) != int and type(verbose) != bool:
+            raise TypeError('verbose must be of int type or bool.')
+
+
         results=[]
         test_y_all = np.array([])
         pred_all = np.array([])
@@ -451,14 +543,14 @@ class Snaplib:
 
         for k in range(0, cv):
             if len(algorithms) > 1:
-                pred = self.predict_stacked(algorithms, 
-                                            k_fold_dict['train_X'][k], 
-                                            k_fold_dict['train_y'][k], 
-                                            k_fold_dict['test_X'][k], 
-                                            k_fold_dict['test_y'][k], 
-                                            task,
-                                            verbose
-                                           )
+                pred = self.fit_predict_stacked(algorithms, 
+                                                k_fold_dict['train_X'][k], 
+                                                k_fold_dict['train_y'][k], 
+                                                k_fold_dict['test_X'][k], 
+                                                k_fold_dict['test_y'][k], 
+                                                task,
+                                                verbose
+                                            )
             else:
                 alg = algorithms[0]
                 alg.fit(k_fold_dict['train_X'][k], k_fold_dict['train_y'][k])
@@ -519,7 +611,7 @@ class Snaplib:
         but also for all other columns.
 
         Use case:
-        train_X, test_X, train_y, test_y = Snaplib.train_test_split_balanced(df, target_name, test_size=0.2, random_state=0, research_iter=0)
+        train_X, test_X, train_y, test_y = Snaplib().train_test_split_balanced(df, target_name, test_size=0.2, random_state=0, research_iter=0)
         
         1) The input should be a whole DataFrame. It's the first positional argument.
         2) And the second positional argument should be the name of the target feature as a string.
@@ -536,6 +628,18 @@ class Snaplib:
         5) The number of possible random_state is an equivalent to 1/test_size.
         6) The necessary libraries are integrated at the beginning of the method.
         '''
+
+        if not isinstance(df, pd.core.frame.DataFrame):
+            raise TypeError('The df must be a pandas.core.frame.DataFrame instance.')
+        if type(target_feature) != str:
+            raise TypeError('target_feature must be of str type.')
+        if type(test_size) != float:
+            raise TypeError('test_size must be of float type in [0.0, 1.0].')
+        if type(random_state) != int:
+            raise TypeError('random_state must be of int type.')
+        if type(research_iter) != int:
+            raise TypeError('research_iter must be of int type. Recomended interval [0:100]')
+
         
         CLASSIFIER_FOR_UNIQUE_VALUES_LESS_THAN = 20
         df_count = pd.DataFrame()
@@ -719,20 +823,28 @@ class Snaplib:
         Imputing of missing values (np.nan) in tabular data, not TimeSeries.
 
         Use case:
-        df = Snaplib.recover_data(df, verbose=True, stacking=True)
+        df = Snaplib().recover_data(df, verbose=True, stacking=True)
 
         if set verbose = True algorithm run tests and print results of tests for decision making.
         if set stacking = True algorithm apply ensemble lightgbm, catboost, xgboost, else lightgbm only. 
         And ensemble decrise train/test leakage.
         '''
+
+        if not isinstance(df_0, pd.core.frame.DataFrame):
+            raise TypeError('The df must be a pandas.core.frame.DataFrame instance.')
+        if type(verbose) != int and type(verbose) != bool:
+            raise TypeError('verbose must be of int type or bool.')
+        if type(stacking) != int and type(stacking) != bool:
+            raise TypeError('stacking must be of int type or bool.')
             
+
+
 
         counter_predicted_values = 0
         CLASS_VALUE_COUNTS = 20
         miss_indeces = None
 
 
-        
         
         
         def get_predictors(columns, target_column):
