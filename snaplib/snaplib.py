@@ -1,5 +1,7 @@
 import datetime
 import sys
+import pickle
+from os import makedirs
 import warnings
 if not sys.warnoptions:
     warnings.simplefilter("ignore")
@@ -9,6 +11,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import seaborn as sns
+
+
 
 
 import lightgbm as lgb
@@ -426,7 +430,7 @@ class Snaplib:
         algorithms_list = list of algorithms [LGBMClassifier(), XGBClassifier(), CatBoostClassifier()].
         X_train and y_train are data for training list of algorithms.
         X_pred is dataframe for prediction.
-        y_test optionaly. If exist visualize it as last column on a plot (verbose=2). 
+        y_test optionaly. If exist visualize it as last column on a plot (verbose=True). 
         task='clsf' or 'regr', classification or regression
         verbose = 0 mute, 1 verbose.
 
@@ -523,7 +527,7 @@ class Snaplib:
         if type(algorithms) != list:
             raise TypeError('The algorithms must be of list type.')
         if len(algorithms) == 0:
-            raise ValueError('Algorithms list is empty.')
+            raise ValueError('algorithms_listt is empty.')
         if type(k_fold_dict) != dict:
             raise TypeError('The k_fold_dict must be of dict type.')
         if task != 'clsf' and task != 'regr':
@@ -589,11 +593,199 @@ class Snaplib:
         return score
     
     
+
+
+
+
+
+
+
+
+    def fit_stacked(self, 
+                    algorithms_list, 
+                    X, 
+                    y
+                    ):
+        
+        ''' 
+        Fit method for list of algorithms.
+        
+        Use case:
+        algorithms_list = Snaplib().fit_stacked(
+                                                algorithms_list, 
+                                                X, 
+                                                y, 
+                                                ):
+        
+        algorithms_list = list of algorithms [LGBMClassifier(), XGBClassifier(), CatBoostClassifier()].
+        X and y are data for training list of algorithms.
+
+        '''
+
+        if type(algorithms_list) != list:
+            raise TypeError('algorithms_list must be of list type.')
+        if len(algorithms_list) == 0:
+            raise ValueError('algorithms_list is empty.')
+        
+        if not isinstance(X, pd.core.frame.DataFrame):
+            raise TypeError('The X must be a pandas.core.frame.DataFrame instance.')
+        if not isinstance(y, pd.core.frame.Series) and not isinstance(y, np.ndarray):
+            raise TypeError('The y must be a pandas.core.frame.Series instance.')
+
+
+        for alg in algorithms_list:
+            alg.fit(X, y)
+        return algorithms_list
+    
+    
+
+
+
+
+
+
+
+
+
+    def predict_stacked(self, 
+                        algorithms_list, 
+                        X_pred, 
+                        task='clsf'
+                        ):
+
+        ''' 
+        Prediction method for list of algorithms.
+        
+        Use case:
+        y_hat = predict_stacked(self, 
+                                algorithms_list, 
+                                X, 
+                                task='clsf'
+                                ):
+        
+        algorithms_list = list of algorithms [LGBMClassifier(), XGBClassifier(), CatBoostClassifier()].
+        X_pred is dataframe for prediction.
+        task='clsf' or 'regr', classification or regression
+
+        '''
+        if type(algorithms_list) != list:
+            raise TypeError('algorithms_list must be of list type.')
+        if len(algorithms_list) == 0:
+            raise ValueError('algorithms_list is empty.')
+
+        if not isinstance(X_pred, pd.core.frame.DataFrame):
+            raise TypeError('The X__pred must be a pandas.core.frame.DataFrame instance.')
+
+        if task !='clsf' and task != 'regr':
+            raise ValueError('Task in fit_predict_stacked() must be "clsf" or "regr".')
+
+        
+        stacked_predicts = pd.DataFrame()
+        alg_names = []
+        for alg in algorithms_list:
+            alg_name = alg.__class__.__name__[:3]
+            y_hat = alg.predict(X_pred)
+            if task =='clsf':
+                stacked_predicts[alg_name] = y_hat.astype('int64')
+            elif task=='regr':
+                stacked_predicts[alg_name] = y_hat
+            alg_names.append(alg_name)
+
+        if task =='clsf':
+            stacked_predicts['Y_HAT_STACKED'] = stacked_predicts[alg_names].mode(axis=1)[0].astype('int64')
+        elif task=='regr':
+            stacked_predicts['Y_HAT_STACKED'] = stacked_predicts[alg_names].mean(axis=1)
+        return stacked_predicts.loc[:, 'Y_HAT_STACKED']
+    
+    
+    
+
+
+
+
+
+
+    
+    def save_stack(self, algorithms_list, directory=''):
+        ''' 
+        Save method for all in list of algorithms in directory.
+        Return list of file names
+        
+        Use case:
+        file_names = save_stack(self, algorithms_list, directory='')
+        
+        algorithms_list = list of algorithms [LGBMClassifier(), XGBClassifier(), CatBoostClassifier()].
+        directory:
+        '' - save files to current working directory
+        or
+        save files to /some/directory/not/exist/
+        '''
+
+        if type(algorithms_list) != list:
+            raise TypeError('algorithms_list must be of list type.')
+        if len(algorithms_list) == 0:
+            raise ValueError('algorithms_list is empty.')
+        if type(directory) != str:
+            raise ValueError('directory must be of str type.')
+
+        names = []
+        if directory:
+            directory = (directory[:-1] if directory[-1] == '/' else directory) + '/'
+        makedirs(directory, exist_ok=True)
+        
+        for alg in algorithms_list:
+            filename = alg.__class__.__name__ + '.sav'
+            path = directory + filename
+            pickle.dump(alg, open(path, 'wb'))
+            names.append(filename)
+        return names
+
+
+
+
+
+
+
+
+
+
+    def load_stack(self, names_list, directory=''):
+        ''' 
+        Load method for file names in list of names in directory.
+        Return list of algorithms.
+        
+        Use case:
+        algorithms = load_stack(self, names_list, directory='')
+        
+        names_list is the list of names like ['LGBMClassifier.sav', 'XGBClassifier.sav', 'CatBoostClassifier.sav']
+        directory:
+        '' - read files from current working directory
+        or
+        read files from /some/directory/not/exist/
+        '''
+
+        if type(names_list) != list:
+            raise TypeError('names_list must be of list type.')
+        if len(names_list) == 0:
+            raise ValueError('algorithms_list is empty.')
+        if type(directory) != str:
+            raise ValueError('directory must be of str type.')
+
+
+        algorithms_list = []
+    
+        if directory:
+            directory = (directory[:-1] if directory[-1] == '/' else directory) + '/'
+        
+        for alg_name in names_list:
+            algorithms_list.append(pickle.load(open(directory + alg_name, 'rb')))
+        return algorithms_list
     
     
     
     
     
+
 
 
 
