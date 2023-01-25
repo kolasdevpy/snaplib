@@ -203,7 +203,6 @@ class Snaplib:
         if verbose:
             print(f'shape: {df.shape}\n')
             print(f'\nFinish shape: {df.shape}\n')
-            self.nan_plot(df)
         return df
 
     
@@ -405,10 +404,10 @@ class Snaplib:
     
     def fit_predict_stacked(self, 
                             algorithms_list, 
-                            X__train, 
-                            y__train, 
-                            X__pred, 
-                            y__test=None, 
+                            X_train, 
+                            y_train, 
+                            X_pred, 
+                            y_test=None, 
                             task='clsf', 
                             verbose=0
                             ):
@@ -437,15 +436,15 @@ class Snaplib:
         '''
         if type(algorithms_list) != list:
             raise TypeError('algorithms_list must be of list type.')
-        if not isinstance(X__train, pd.core.frame.DataFrame):
+        if not isinstance(X_train, pd.core.frame.DataFrame):
             raise TypeError('The X__train must be a pandas.core.frame.DataFrame instance.')
-        if not isinstance(X__pred, pd.core.frame.DataFrame):
+        if not isinstance(X_pred, pd.core.frame.DataFrame):
             raise TypeError('The X__pred must be a pandas.core.frame.DataFrame instance.')
 
-        if not isinstance(y__train, pd.core.frame.Series) and not isinstance(y__train, np.ndarray):
+        if not isinstance(y_train, pd.core.frame.Series) and not isinstance(y_train, np.ndarray):
             raise TypeError('The y__train must be a pandas.core.frame.Series instance.')
-        if y__test is not None:
-            if not isinstance(y__test, pd.core.frame.Series) and not isinstance(y__test, np.ndarray):
+        if y_test is not None:
+            if not isinstance(y_test, pd.core.frame.Series) and not isinstance(y_test, np.ndarray):
                 raise TypeError('The y__test must be a pandas.core.frame.Series instance or numpy.ndarray.')
 
         if task !='clsf' and task != 'regr':
@@ -461,8 +460,12 @@ class Snaplib:
         alg_names = []
         for alg in algorithms_list:
             alg_name = alg.__class__.__name__[:3]
-            model = alg.fit(X__train, y__train)
-            y_hat = model.predict(X__pred)
+            if y_test is not None and alg_name in ['LGB', 'XGB', 'Cat']:
+                model = alg.fit(X_train, y_train, eval_set=[(X_pred, y_test)], early_stopping_rounds=10, verbose=False)
+            else:
+                model = alg.fit(X_train, y_train)
+
+            y_hat = model.predict(X_pred)
             if task =='clsf':
                 stacked_predicts[alg_name] = y_hat.astype('int64')
             elif task=='regr':
@@ -471,12 +474,12 @@ class Snaplib:
 
         if task =='clsf':
             stacked_predicts['Y_HAT_STACKED'] = stacked_predicts[alg_names].mode(axis=1)[0].astype('int64')
-            if y__test is not None:
-                stacked_predicts['Y_TEST'] = y__test.values.astype('int64')
+            if y_test is not None:
+                stacked_predicts['Y_TEST'] = y_test.values.astype('int64')
         elif task=='regr':
             stacked_predicts['Y_HAT_STACKED'] = stacked_predicts[alg_names].mean(axis=1)
-            if y__test is not None:
-                stacked_predicts['Y_TEST'] = y__test.values
+            if y_test is not None:
+                stacked_predicts['Y_TEST'] = y_test.values
 
 
 
@@ -575,7 +578,9 @@ class Snaplib:
         score = sum(results) / len(results)
 
         if verbose:
-            print(*algorithms, sep='\n')
+            for alg in algorithms:
+                print(alg.__class__.__name__)
+                
             print('')
             if str(metric).split('.')[0] == 'functools':
                 metric_name = str(metric).split('function ')[1].split(' ')[0]
@@ -603,8 +608,11 @@ class Snaplib:
 
     def fit_stacked(self, 
                     algorithms_list, 
-                    X, 
-                    y
+                    X_train, 
+                    y_train, 
+                    X_val=None, 
+                    y_val=None, 
+                    verbose=0
                     ):
         
         ''' 
@@ -613,13 +621,18 @@ class Snaplib:
         Use case:
         algorithms_list = Snaplib().fit_stacked(
                                                 algorithms_list, 
-                                                X, 
-                                                y, 
+                                                X_train, 
+                                                y_train, 
+                                                X_val=None, 
+                                                y_val=None,
+                                                verbose=0,
                                                 ):
         
         algorithms_list = list of algorithms [LGBMClassifier(), XGBClassifier(), CatBoostClassifier()].
-        X and y are data for training list of algorithms.
-
+        X_train and y_train are data for training list of algorithms.
+        X_val and y_val are validation set for early_stopping_rounds for 
+        [LGBMClassifier(), XGBClassifier(), CatBoostClassifier()]
+        verbose = 0 mute, 1 verbose.
         '''
 
         if type(algorithms_list) != list:
@@ -627,14 +640,29 @@ class Snaplib:
         if len(algorithms_list) == 0:
             raise ValueError('algorithms_list is empty.')
         
-        if not isinstance(X, pd.core.frame.DataFrame):
-            raise TypeError('The X must be a pandas.core.frame.DataFrame instance.')
-        if not isinstance(y, pd.core.frame.Series) and not isinstance(y, np.ndarray):
-            raise TypeError('The y must be a pandas.core.frame.Series instance.')
+        if not isinstance(X_train, pd.core.frame.DataFrame):
+            raise TypeError('The X__train must be a pandas.core.frame.DataFrame instance.')
+        if not isinstance(y_train, pd.core.frame.Series) and not isinstance(y_train, np.ndarray):
+            raise TypeError('The y__train must be a pandas.core.frame.Series instance or numpy.ndarray.')
+
+        if X_val is not None:
+            if not isinstance(X_val, pd.core.frame.DataFrame):
+                raise TypeError('The X__val must be a pandas.core.frame.DataFrame instance.')
+        if y_val is not None:
+            if not isinstance(y_val, pd.core.frame.Series) and not isinstance(y_val, np.ndarray):
+                raise TypeError('The y__val must be a pandas.core.frame.Series instance or numpy.ndarray.')
+
+        if type(verbose) != int and type(verbose) != bool:
+            raise TypeError('verbose must be of int type or bool.')
 
 
         for alg in algorithms_list:
-            alg.fit(X, y)
+            alg_name = alg.__class__.__name__[:3]
+            if X_val is not None and y_val is not None and alg_name in ['LGB', 'XGB', 'Cat']:
+                alg.fit(X_train, y_train, eval_set=[(X_val, y_val)], early_stopping_rounds=10, verbose=verbose)
+            else:
+                alg.fit(X_train, y_train)
+
         return algorithms_list
     
     
@@ -696,9 +724,107 @@ class Snaplib:
         elif task=='regr':
             stacked_predicts['Y_HAT_STACKED'] = stacked_predicts[alg_names].mean(axis=1)
         return stacked_predicts.loc[:, 'Y_HAT_STACKED']
-    
-    
-    
+
+
+
+
+
+
+
+
+
+
+    def features_selection_clsf(self, algorithms, df, target, metric, cv, verbose=0):
+        
+
+        ''' 
+        Select bests features for modeling and return list with bad features required to be droped.
+        
+        Use case:
+        features_to_drop = Snaplib().features_selection_clsf(self, algorithms, df, target, metric, cv, verbose=0):
+        df.drop(features_to_drop, inplace=True, axis=1)
+
+
+        algorithms_list = list of algorithms like [LGBMClassifier(), XGBClassifier(), CatBoostClassifier()].
+        df = pandas.core.frame.DataFrame.
+        target = name of target of str type.
+              
+        metric is a metric like f1_score or mean_absolute_error.
+        cv is num K_FOLD integer 
+        verbose = 0 mute, 1 verbose.
+
+        '''
+
+        if type(algorithms) != list:
+            raise TypeError('The algorithms must be of list type.')
+        if len(algorithms) == 0:
+            raise ValueError('algorithms_listt is empty.')
+        if not isinstance(df, pd.core.frame.DataFrame):
+            raise TypeError('The df must be a pandas.core.frame.DataFrame instance.')
+        if type(target) != str:
+            raise TypeError('target_feature must be of str type.')
+        if type(cv) != int:
+            raise TypeError('cv must be of int type.')
+        if type(verbose) != int and type(verbose) != bool:
+            raise TypeError('verbose must be of int type or bool.')
+
+
+
+
+
+
+            
+        cv_score_of_bad_feature = 1
+        droped_features = []
+        features = list(df.columns)
+        scores_df = pd.DataFrame(index = features, columns=['cv_score'])
+        
+        k_folds_dict_data = self.k_folds_split(df[features], target, cv)
+        score_with_all_features  = self.cross_val(algorithms, k_folds_dict_data, metric, task='clsf', cv=cv, verbose=0)
+        if verbose:
+            print(f'{score_with_all_features}     General cv_score with all features')
+        
+        
+        while score_with_all_features <= cv_score_of_bad_feature:
+            scores_df = pd.DataFrame(index = features, columns=['cv_score'])
+            k_folds_dict_data = self.k_folds_split(df[features], target, cv)
+            score_with_all_features  = self.cross_val(algorithms, k_folds_dict_data, metric, task='clsf', cv=cv, verbose=0)
+            if verbose:
+                print('\n\n')
+                print(f'{len(features)} number of features')
+                print("{:1.8f}   {:20}  ".format(score_with_all_features, 'BASE cv_score with all features'))
+                print('\n\nwithou feature\n')
+
+            for without_feature in features:
+                if without_feature != target:
+                    fit_faetures = features[:]
+                    fit_faetures.remove(without_feature)
+                    k_folds_dict_data = self.k_folds_split(df[fit_faetures], target, cv)
+                    score  = self.cross_val(algorithms, k_folds_dict_data, metric, task='clsf', cv=cv, verbose=0)
+                    scores_df.loc[without_feature] = score
+                    if verbose:
+                        print("{:1.8f}   {:20}  ".format(score, without_feature))
+
+            scores_df = scores_df.sort_values(by=['cv_score'], ascending=False)
+            bad_feature = scores_df.index[0]
+            cv_score_of_bad_feature = scores_df.iloc[0][0]
+            
+            if score_with_all_features <= cv_score_of_bad_feature:
+                features.remove(bad_feature)
+                droped_features.append(bad_feature)
+                if verbose:
+                    print('--------------------------------------------')
+                    print(f'    APPEND TO DROP    {bad_feature}')
+                    print('--------------------------------------------')
+            else:
+                if verbose:
+                    print('\n\n')
+                    print(f'These features have been droped:\n{droped_features}')
+                    print('\n\n')
+                return droped_features        
+        
+        
+
 
 
 
@@ -1113,8 +1239,8 @@ class Snaplib:
         
         df = df_0.copy()
 
-        if verbose:
-            self.nan_plot(df)
+        # if verbose:
+        #     self.nan_plot(df)
                 
         data_info = self.nan_info(df)
         if verbose:
@@ -1326,7 +1452,7 @@ class Snaplib:
         df.index = df_indeces
 
         if verbose:
-            self.nan_plot(df)
+            # self.nan_plot(df)
             print('\n\n\n')
             data_info = self.nan_info(df)
             print(data_info)
