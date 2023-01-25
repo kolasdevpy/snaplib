@@ -19,33 +19,24 @@ ____________________________________________
 
 # PyPi
 
-!pip install snaplib     
-
-
-
-# Use cases     
-      
+!pip install snaplib           
 from snaplib.snaplib import Snaplib     
 sl = Snaplib()    
        
      
       
-missing_info_df = sl.nan_info(df)     
-      
-sl.nan_plot(df)      
-     
-df = sl.cleane(df, target_name, verbose=True)     
-      
-train_X, test_X, train_y, test_y = sl.train_test_split_balanced(df, target_name, test_size=0.2, random_state=0, research_iter=0)     
-      
-df = sl.recover_data(df, verbose=True, stacking=True)    
-
-df = sl.encode_dataframe(df)     
-
-df = sl.decode_dataframe(df)     
-
-k_fold_dict_data = sl.k_folds_split(df, target_name_str, k)      
-
-y_hat = sl.fit_predict_stacked(algorithms_list, X_train, y_train, X_pred, y_test=None, task='clsf', verbose=0)     
-
-score = sl.cross_val(algorithms_list, k_fold_dict_data, metric, task, cv, verbose=0)      
+1. sl.nan_info     
+2. sl.nan_plot     
+3. sl.cleane     
+4. sl.recover_data - NaN imputing with ML     
+5. sl.train_test_split_balanced     
+6. sl.encode_dataframe     
+7. sl.decode_dataframe     
+8. sl.k_folds_split     
+### For one and list of algorithms    
+9. sl.cross_val    
+10. sl.features_selection_clsf     
+11. sl.fit_stacked     
+12. sl.save_stack     
+13. sl.load_stack     
+14. sl.predict_stacked      
