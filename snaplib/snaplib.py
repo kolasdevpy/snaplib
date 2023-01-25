@@ -659,7 +659,7 @@ class Snaplib:
         for alg in algorithms_list:
             alg_name = alg.__class__.__name__[:3]
             if X_val is not None and y_val is not None and alg_name in ['LGB', 'XGB', 'Cat']:
-                alg.fit(X_train, y_train, eval_set=[(X_val, y_val)], early_stopping_rounds=10, verbose=verbose)
+                alg.fit(X_train, y_train, eval_set=[(X_val, y_val)], early_stopping_rounds=200, verbose=verbose)
             else:
                 alg.fit(X_train, y_train)
 
