@@ -545,9 +545,9 @@ class Snaplib:
         test_y_all = np.array([])
         pred_all = np.array([])
         if task == 'clsf':
-
-
-            cm_base = np.array([[0, 0], [0, 0]])
+            length = len(k_fold_dict['train_y'][0].value_counts().index)
+            cm_base = np.zeros([length, length])
+            # cm_base = np.array([[0, 0], [0, 0]])
 
 
         for k in range(0, cv):
@@ -1133,19 +1133,18 @@ class Snaplib:
 
 
 
+
     def recover_data(self,
                      df_0, 
                      verbose = 1,
-                     stacking = 0, 
-                    ):
+                     ):
         ''' 
         Imputing of missing values (np.nan) in tabular data, not TimeSeries.
 
         Use case:
         df = Snaplib().recover_data(df, verbose=True, stacking=True)
 
-        if set verbose = True algorithm run tests and print results of tests for decision making.
-        if set stacking = True algorithm apply ensemble lightgbm, catboost, xgboost, else lightgbm only. 
+        if set verbose = if True algorithm runs cross validation tests and print results of tests for decision making.
         And ensemble decrise train/test leakage.
         '''
 
@@ -1153,26 +1152,21 @@ class Snaplib:
             raise TypeError('The df must be a pandas.core.frame.DataFrame instance.')
         if type(verbose) != int and type(verbose) != bool:
             raise TypeError('verbose must be of int type or bool.')
-        if type(stacking) != int and type(stacking) != bool:
-            raise TypeError('stacking must be of int type or bool.')
-            
-
 
 
         counter_predicted_values = 0
-        CLASS_VALUE_COUNTS = 20
+        CLASS_VALUE_COUNTS = 30
+        K_FOLDS = 3
         miss_indeces = None
 
 
-        
-        
         def get_predictors(columns, target_column):
             columns_now = columns[:]
             if target_column in columns:
                 columns_now.remove(target_column)
             return columns_now
-        
-        
+
+
         def normalize_data(df_in, columns):
             for col in columns:
                 min_x = df_in[col].min()
@@ -1180,82 +1174,26 @@ class Snaplib:
                 df_in[col] = (df_in[col] - min_x) / (max_x - min_x)
                 df_in[col] = np.log1p(df_in[col])
             return df_in
-        
-        
-        def get_class_weight(y):
-            global class_weight
-            class_weight={}
-            unique = []
-            counts = []
-            values_counted = (pd.DataFrame(y)).value_counts().sort_values(ascending=False)
-            for idx, val in values_counted.items():
-                unique.append(idx[0])
-                counts.append(val)
 
-            max_value = max(counts)
-            j = 0
-            for el in unique:
-                class_weight[el] = int(max_value/counts[j])
-                j += 1
-            if len(unique) == 1:
-                class_weight = {}
-            return class_weight
 
-        
-        def predict(X__train, y__train, X__pred, algorithms_list, values_counted=None):
 
-            if len(pd.Series(y__train).value_counts()) == 1:
-                algorithms_list = [algorithms_list[0]]
-                
-            stacked_predicts = pd.DataFrame()
-            stacked_column_names = []
-            for alg in algorithms_list:
-                alg_name = str(alg.__class__.__name__)[:3]
-                model = alg.fit(X__train, y__train.ravel())
-                y_hat = model.predict(X__pred).ravel()
-                stacked_predicts[alg_name] = y_hat
-                stacked_column_names.append(alg_name)
-            if values_counted:
-                # classification
-                stacked_predicts['y_hat_final'] = stacked_predicts[stacked_column_names].mode(axis=1)[0].astype('int64')
-                y_hat = list(stacked_predicts.loc[:, 'y_hat_final'])
-            else:
-                # regression
-                stacked_predicts['y_hat_final'] = stacked_predicts[stacked_column_names].mean(axis=1)
-                y_hat = stacked_predicts.loc[:, 'y_hat_final']
-                y_hat[y_hat == -np.inf] = 0
-                y_hat[y_hat == np.inf] = 0
-            return y_hat
 
-        
-        def imput_missing_value_to_main_df(df, miss_indeces, pred_miss, el):
-            df.loc[miss_indeces, el] = pred_miss[:]
-            return df
-        
-        
-
-        
-        # main
         init_time = datetime.datetime.now()
-        
-        df = df_0.copy()
 
-        # if verbose:
-        #     self.nan_plot(df)
-                
+        df = df_0.copy()
         data_info = self.nan_info(df)
         if verbose:
             print('\n\n\n', data_info, '\n\n\n')
-        
+
         all_features = list(df.columns)
         df_indeces = list(df.index)
         df.reset_index(drop=True, inplace = True)
-        
+
         all_miss_features = list(data_info.index[data_info['NaN_counts'] > 0])
-        
+
         # a simple encoding
         df = self.encode_dataframe(df)
-        
+
         # get continuous & discrete features
         continuous_features = []
         discrete_features = []
@@ -1266,49 +1204,52 @@ class Snaplib:
             else:
                 discrete_features.append(col)
 
-        
+
         # work with each column containing NaNs
         for target_now in all_miss_features:
             if verbose:
                 init_iter_time = datetime.datetime.now()
-                print('='*90,'\n')
+                print('='*50,'\n')
             # predictors for iteration
             predictors = all_features[:]
             predictors.remove(target_now)
-            
+
             continuous_features_now = get_predictors(continuous_features, target_now)
             # discrete_features_now = get_predictors(discrete_features, target_now)
-            
+
             # indexes of missing data in target_now (data for prediction)
             miss_indeces = list((df[pd.isnull(df[target_now])]).index)
             count_miss_values = len(miss_indeces)
 
             # data without NaN rows (X data for train & evaluation of model)
             work_indeces = list(set(df_indeces) - set(miss_indeces))
-            
+
             # X data for predict target NaNs
             miss_df = df.loc[miss_indeces, predictors]
             miss_df = normalize_data(miss_df, continuous_features_now)
-            
+
             # X data for train and model evaluation 
             work_df = df.iloc[work_indeces, : ]
             work_df = normalize_data(work_df, continuous_features_now)
-            
+
             X = work_df[predictors]
             y = work_df[target_now]
             y[y == -np.inf] = 0
             y[y == np.inf] = 0
-            
-            
+
+
             target_values_counted = y.value_counts()
             last_item = target_values_counted.tail(1).item()
             len_target_values_counted = len(target_values_counted)
-            
-            
+
+
             feature_type_target = data_info.loc[target_now, 'col_type']
+
+
             if len_target_values_counted <= CLASS_VALUE_COUNTS or feature_type_target == 'object':
                 labelencoder = LabelEncoder()
                 y = labelencoder.fit_transform(y).astype('int64')
+                work_df[target_now] = work_df[target_now].astype('int64')
             else:
                 # normalization
                 min_y = y.min()
@@ -1316,144 +1257,120 @@ class Snaplib:
                 y = (y - min_y) / (max_y - min_y)
                 y = np.log1p(y)
 
-            
-                
-
-            # split for testing
-            if feature_type_target == 'object' and last_item < 2:
-                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.5, random_state=0)
-            elif feature_type_target == 'object' and last_item < 3:
-                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.5, random_state=0, stratify=y)
-            elif feature_type_target == 'object' and last_item < 5:
-                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=0, stratify=y)
-            elif feature_type_target == 'object':
-                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0, stratify=y)
-            else:
-                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0)
-
-
-
-
-
-            # else:
-            # df_conctd = pd.concat([X, pd.Series(y, name=target_now)], axis=1)
-            # X_train, X_test, y_train, y_test = self.train_test_split_balanced(df_conctd, target_now, test_size=0.2, random_state=0, research_iter=0)
-
-            
             # Info
             if verbose:
                 percent_missing_data = data_info.loc[target_now, 'NaN_percent']
-                print(f'Feature: {target_now}, missing values: {percent_missing_data}%\n')    
-                print(f'Shape for train & test: {(X.shape)}')
-                print('')
-                if len_target_values_counted < 11 or feature_type_target == 'object':
-                    print(f'values_count:')
-                    print(target_values_counted)
-                    print('')
+                print(f'Feature: {target_now}, missing values: {percent_missing_data}%\n')
+                # split for testing
+                k_fold_dict = self.k_folds_split(work_df, target_now, K_FOLDS)
 
-            
             # PREDICTIONS CLASSIFIER
             if len_target_values_counted < CLASS_VALUE_COUNTS or feature_type_target == 'object':
-                class_weight = get_class_weight(y_train)
-                lgb_class = lgb.LGBMClassifier(class_weight=class_weight, random_state=0, n_jobs=-1)
-                algorithms = [lgb_class]
-                if stacking:
-                    xgb_class = xgb.XGBClassifier(sample_weight=class_weight, random_state=0, n_jobs=-1, verbosity=0)
-                    ctb_class = ctb.CatBoostClassifier(class_weights=class_weight, random_state=0, verbose=0)
-                    algorithms = [lgb_class, xgb_class, ctb_class]
-                    
-                pred_test = predict(X_train, y_train, X_test, algorithms, len_target_values_counted)
-
+                # Test
                 if verbose:
-                    print('CLASSIFIER:')
-                    print(f'Weights transferred to the classifier: {class_weight}')
-                    print('\nEvaluations:')
-                    print(f'first 20 y_test: {list(y_test[:20])}')
-                    print(f'first 20 y_pred: {pred_test[:20]}\n')
-                    print(f'Classification Report:\n')
-                    print(classification_report(y_test, pred_test), '\n')
+                    print('CLASSIFIER cross validation:')                    
+                    results=[]
+                    test_y_all = np.array([])
+                    pred_all = np.array([])
 
-                pred_miss = predict(X, y, miss_df, algorithms, len_target_values_counted)
+                    for k in range(0, K_FOLDS):
+                        lgb_class = lgb.LGBMClassifier(random_state=0, n_jobs=-1)
+                        lgb_class.fit(k_fold_dict['train_X'][k], k_fold_dict['train_y'][k])
+                        pred = lgb_class.predict(k_fold_dict['test_X'][k])
+                        test_y_all = np.concatenate(([test_y_all, k_fold_dict['test_y'][k]]), axis=None)
+                        pred_all = np.concatenate((pred_all, pred), axis=None)
+                        
+                    if target_now in self.encoder_pool:
+                        enc_names = list(self.encoder_pool[target_now].keys())
+                        print('\n', classification_report(test_y_all, pred_all, target_names=enc_names), '\n')
+                    else:
+                        print('\n', classification_report(test_y_all, pred_all), '\n')
+                    
+                    rng = np.random.default_rng()
+                    idx = rng.integers(len(pred_all)-1, size=20)
+                    test = np.take(test_y_all, idx)
+                    pred = np.take(pred_all, idx)
+                    
+                    print(f'first 20 y_test: {test[:20]}')
+                    print(f'first 20 y_pred: {pred[:20]}\n')
+                    
+                    
 
-                pred_miss = [int(i) for i in pred_miss]
+                # Final prediction
+                lgb_class = lgb.LGBMClassifier(random_state=0, n_jobs=-1)
+                lgb_class.fit(X, y)
+                pred_miss = lgb_class.predict(miss_df)
+
                 pred_miss = labelencoder.inverse_transform(pred_miss)
-                imput_missing_value_to_main_df(df, miss_indeces, pred_miss, target_now)
+
+                df.loc[miss_indeces, target_now] = np.array(pred_miss)
                 counter_predicted_values += len(miss_indeces)
-            
+
             # PREDICTIONS REGRESSOR
             elif feature_type_target == 'float64' or feature_type_target == 'int64':
-                lgb_reg = lgb.LGBMRegressor(n_jobs=-1, random_state=0)
-                algorithms = [lgb_reg]
-                if stacking:
-                    xgb_reg = xgb.XGBRegressor(n_jobs=-1, random_state=0, verbosity=0)
-                    ctb_reg = ctb.CatBoostRegressor(random_state=0, verbose=0)
-                    algorithms = [lgb_reg, xgb_reg, ctb_reg]
-        
-                pred_test = predict(X_train, y_train, X_test, algorithms)
-                pred_test = np.expm1(pred_test)
-                pred_test = (pred_test * (max_y - min_y)) + min_y
-                y_test = (y_test * (max_y - min_y)) + min_y
-
-
-                MAE = mean_absolute_error(y_test,pred_test)
-                y_test = list(np.round(y_test[:10], 1))
-                y_pred = list(np.round(pred_test[:10], 1))    ##############
-                
+                # Test
                 if verbose:
-                    print('REGRESSOR:')
-                    print('\nEvaluations:')
-                    print(f'first 10 y_test: {y_test}')
-                    print(f'first 10 y_pred: {y_pred}\n')
-                    print(f'MAE for {target_now}: {MAE}')
+                    print('REGRESSOR cross validation:')
+
+                    results=[]
+                    test_y_all = np.array([])
+                    pred_all = np.array([])
+                    for k in range(0, K_FOLDS):
+                        lgb_reg = lgb.LGBMRegressor(n_jobs=-1, random_state=0)
+                        lgb_reg.fit(k_fold_dict['train_X'][k], k_fold_dict['train_y'][k])
+                        pred = lgb_reg.predict(k_fold_dict['test_X'][k])
+                        if y.min() == 0.0:
+                            pred[pred < 0] = 0
+                        test_y_all = np.concatenate(([test_y_all, k_fold_dict['test_y'][k]]), axis=None)
+                        pred_all = np.concatenate((pred_all, pred), axis=None)
+
+                    print(f'                   MAE: {mean_absolute_error(test_y_all, pred_all)}')
+                    print(f'                  RMSE: {np.sqrt(((test_y_all - pred_all) ** 2).mean())}')
+
                     print(f'min for {target_now}: {df[target_now].min()}')
                     print(f'avg for {target_now}: {df[target_now].mean()}')
                     print(f'max for {target_now}: {df[target_now].max()}\n')
+                    
+                    rng = np.random.default_rng()
+                    idx = rng.integers(len(pred_all)-1, size=10)
+                    test = np.take(test_y_all, idx)
+                    pred = np.take(pred_all, idx)
+                    
+                    print(f'first 10 y_test: {list(np.round(test, 1))}')
+                    print(f'first 10 y_pred: {list(np.round(pred, 1))}\n')
 
+                # Final prediction
+                lgb_reg = lgb.LGBMRegressor(random_state=0, n_jobs=-1)
+                lgb_reg.fit(X, y)
+                pred_miss = lgb_reg.predict(miss_df)
+                if y.min() == 0:
+                    pred_miss[pred_miss < 0] = 0
 
-    #             ADVANCED  alg = LGBMRegressor(n_jobs=-1, random_state=0)        
-                pred_miss = predict(X, y, miss_df, algorithms)
                 pred_miss = np.expm1(pred_miss)
                 pred_miss = (pred_miss * (max_y - min_y)) + min_y
-                
-                
-                imput_missing_value_to_main_df(df, miss_indeces, list(pred_miss), target_now)
+
+                df.loc[miss_indeces, target_now] = np.array(pred_miss)
                 counter_predicted_values += len(miss_indeces)
-                
 
             else:
                 if verbose:
                     print(f"unprocessed feature: {target_now} - {feature_type_target} type")
 
-
-            
-            del predictors
-            del miss_indeces
-            del miss_df        
-            del work_df
-            del X
-            del y
-            del X_train
-            del X_test
-            del y_train
-            del y_test
-            
             if verbose:
                 finish_iter_time = datetime.datetime.now()
                 requared = finish_iter_time - init_iter_time
                 print(f'Imputed Values: {count_miss_values}')
                 print(f'Required time:  {str(requared)}\n')
 
-            
-        # return states to their initial states        
+        # return dataframe state to their initial states (decode, index, types)
         df = self.decode_dataframe(df)
-            
+
         for col in df.columns:
             df[col] = df[col].astype(data_info.loc[col, 'col_type'])
-                    
+
         df.index = df_indeces
 
         if verbose:
-            # self.nan_plot(df)
             print('\n\n\n')
             data_info = self.nan_info(df)
             print(data_info)
@@ -1464,6 +1381,5 @@ class Snaplib:
             finish_time = datetime.datetime.now()
             requared = finish_time - init_time
             print(f'Required time totally: {str(requared)}\n\n')
-        
 
         return df
