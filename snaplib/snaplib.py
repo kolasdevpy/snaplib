@@ -460,10 +460,10 @@ class Snaplib:
         alg_names = []
         for alg in algorithms_list:
             alg_name = alg.__class__.__name__[:3]
-            if y_test is not None and alg_name in ['LGB', 'XGB', 'Cat']:
-                model = alg.fit(X_train, y_train, eval_set=[(X_pred, y_test)], early_stopping_rounds=10, verbose=False)
-            else:
-                model = alg.fit(X_train, y_train)
+            # if y_test is not None and alg_name in ['LGB', 'XGB', 'Cat']:
+            #     model = alg.fit(X_train, y_train, eval_set=[(X_pred, y_test)], early_stopping_rounds=10, verbose=False)
+            # else:
+            model = alg.fit(X_train, y_train)
 
             y_hat = model.predict(X_pred)
             if task =='clsf':
@@ -545,6 +545,8 @@ class Snaplib:
         test_y_all = np.array([])
         pred_all = np.array([])
         if task == 'clsf':
+
+
             cm_base = np.array([[0, 0], [0, 0]])
 
 
@@ -610,8 +612,8 @@ class Snaplib:
                     algorithms_list, 
                     X_train, 
                     y_train, 
-                    X_val=None, 
-                    y_val=None, 
+                    # X_val=None, 
+                    # y_val=None, 
                     verbose=0
                     ):
         
@@ -630,8 +632,7 @@ class Snaplib:
         
         algorithms_list = list of algorithms [LGBMClassifier(), XGBClassifier(), CatBoostClassifier()].
         X_train and y_train are data for training list of algorithms.
-        X_val and y_val are validation set for early_stopping_rounds for 
-        [LGBMClassifier(), XGBClassifier(), CatBoostClassifier()]
+
         verbose = 0 mute, 1 verbose.
         '''
 
@@ -645,23 +646,23 @@ class Snaplib:
         if not isinstance(y_train, pd.core.frame.Series) and not isinstance(y_train, np.ndarray):
             raise TypeError('The y__train must be a pandas.core.frame.Series instance or numpy.ndarray.')
 
-        if X_val is not None:
-            if not isinstance(X_val, pd.core.frame.DataFrame):
-                raise TypeError('The X__val must be a pandas.core.frame.DataFrame instance.')
-        if y_val is not None:
-            if not isinstance(y_val, pd.core.frame.Series) and not isinstance(y_val, np.ndarray):
-                raise TypeError('The y__val must be a pandas.core.frame.Series instance or numpy.ndarray.')
+        # if X_val is not None:
+        #     if not isinstance(X_val, pd.core.frame.DataFrame):
+        #         raise TypeError('The X__val must be a pandas.core.frame.DataFrame instance.')
+        # if y_val is not None:
+        #     if not isinstance(y_val, pd.core.frame.Series) and not isinstance(y_val, np.ndarray):
+        #         raise TypeError('The y__val must be a pandas.core.frame.Series instance or numpy.ndarray.')
 
         if type(verbose) != int and type(verbose) != bool:
             raise TypeError('verbose must be of int type or bool.')
 
 
         for alg in algorithms_list:
-            alg_name = alg.__class__.__name__[:3]
-            if X_val is not None and y_val is not None and alg_name in ['LGB', 'XGB', 'Cat']:
-                alg.fit(X_train, y_train, eval_set=[(X_val, y_val)], early_stopping_rounds=200, verbose=verbose)
-            else:
-                alg.fit(X_train, y_train)
+            # alg_name = alg.__class__.__name__[:3]
+            # if X_val is not None and y_val is not None and alg_name in ['LGB', 'XGB', 'Cat']:
+            #     alg.fit(X_train, y_train, eval_set=[(X_val, y_val)], early_stopping_rounds=10, verbose=verbose)
+            # else:
+            alg.fit(X_train, y_train)
 
         return algorithms_list
     
@@ -1372,7 +1373,7 @@ class Snaplib:
                     print(f'Classification Report:\n')
                     print(classification_report(y_test, pred_test), '\n')
 
-                pred_miss = predict(X_train, y_train, miss_df, algorithms, len_target_values_counted)
+                pred_miss = predict(X, y, miss_df, algorithms, len_target_values_counted)
 
                 pred_miss = [int(i) for i in pred_miss]
                 pred_miss = labelencoder.inverse_transform(pred_miss)
