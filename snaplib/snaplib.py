@@ -13,11 +13,7 @@ import numpy as np
 import seaborn as sns
 
 
-
-
 import lightgbm as lgb
-import catboost as ctb
-import xgboost as xgb
 
 
 from sklearn.preprocessing import LabelEncoder
@@ -27,7 +23,8 @@ from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.metrics import f1_score
 
 
-
+from itertools import chain, combinations
+from termcolor import colored
 
 
 
@@ -458,8 +455,12 @@ class Snaplib:
 
         stacked_predicts = pd.DataFrame()
         alg_names = []
+        increment = 1
         for alg in algorithms_list:
             alg_name = alg.__class__.__name__[:3]
+            if alg_name in alg_names:
+                alg_name = alg_name + '_' + str(increment)
+                increment+=1
             # if y_test is not None and alg_name in ['LGB', 'XGB', 'Cat']:
             #     model = alg.fit(X_train, y_train, eval_set=[(X_pred, y_test)], early_stopping_rounds=10, verbose=False)
             # else:
@@ -481,14 +482,7 @@ class Snaplib:
             if y_test is not None:
                 stacked_predicts['Y_TEST'] = y_test.values
 
-
-
-        y_hat = stacked_predicts.loc[:, 'Y_HAT_STACKED']
-        if verbose:
-            plt.figure(figsize=(5, 10))
-            sns.heatmap(stacked_predicts[-1000:], cbar=False)
-            plt.show()
-        return y_hat
+        return stacked_predicts
 
 
     
@@ -541,48 +535,37 @@ class Snaplib:
             raise TypeError('verbose must be of int type or bool.')
 
 
-        results=[]
-        test_y_all = np.array([])
-        pred_all = np.array([])
-        if task == 'clsf':
-            length = len(k_fold_dict['train_y'][0].value_counts().index)
-            cm_base = np.zeros([length, length])
-            # cm_base = np.array([[0, 0], [0, 0]])
-
+        results=[]    
+        all_prediction_df = pd.DataFrame()
+        research_best_score=dict()
+        
 
         for k in range(0, cv):
-            if len(algorithms) > 1:
-                pred = self.fit_predict_stacked(algorithms, 
-                                                k_fold_dict['train_X'][k], 
-                                                k_fold_dict['train_y'][k], 
-                                                k_fold_dict['test_X'][k], 
-                                                k_fold_dict['test_y'][k], 
-                                                task,
-                                                verbose
-                                            )
-            else:
-                alg = algorithms[0]
-                alg.fit(k_fold_dict['train_X'][k], k_fold_dict['train_y'][k])
-                pred = alg.predict(k_fold_dict['test_X'][k])
+            pred_frame = self.fit_predict_stacked(algorithms, 
+                                                    k_fold_dict['train_X'][k], 
+                                                    k_fold_dict['train_y'][k], 
+                                                    k_fold_dict['test_X'][k], 
+                                                    k_fold_dict['test_y'][k], 
+                                                    task,
+                                                    verbose
+                                                    )
 
-            if verbose:
-                if task == 'clsf':
-                    cm = confusion_matrix(k_fold_dict['test_y'][k], pred)
-                    cm_base = cm_base + cm
-
-            test_y_all = np.concatenate(([test_y_all, k_fold_dict['test_y'][k]]), axis=None)
-            pred_all = np.concatenate((pred_all, pred), axis=None)
-
+            pred = pred_frame.loc[:, 'Y_HAT_STACKED']
             score = metric(k_fold_dict['test_y'][k], pred)
             results.append(score)
+            
+            if verbose:
+                all_prediction_df = pd.concat([all_prediction_df, pred_frame], ignore_index=True)
 
         results_std = np.std(results)
         score = sum(results) / len(results)
 
+        
         if verbose:
+            all_prediction_df.reset_index(drop=True, inplace=True)
             for alg in algorithms:
                 print(alg.__class__.__name__)
-                
+
             print('')
             if str(metric).split('.')[0] == 'functools':
                 metric_name = str(metric).split('function ')[1].split(' ')[0]
@@ -592,13 +575,120 @@ class Snaplib:
             print('\n', results, '\n')
 
             if task == 'clsf':
-                print('\n', classification_report(test_y_all, pred_all), '\n')
+                print('\n', classification_report(all_prediction_df['Y_TEST'], all_prediction_df.loc[:, 'Y_HAT_STACKED']), '\n')
                 plt.figure(figsize=(3, 3))
-                sns.heatmap(cm_base, annot=True, cmap="Blues", fmt='.0f',  cbar=False)
+                cm = confusion_matrix(all_prediction_df.loc[:, 'Y_TEST'], all_prediction_df.loc[:, 'Y_HAT_STACKED'])
+                sns.heatmap(cm, annot=True, cmap="Blues", fmt='.0f',  cbar=False)
                 plt.show()
+                
+                
+                
+            rng = np.random.default_rng()
+            idx = set(rng.integers(len(all_prediction_df)-1, size=200))
 
+            data = all_prediction_df.loc[idx,:]
+            data.sort_values(by='Y_TEST', ascending=True, inplace=True)
+            data.reset_index(drop=True, inplace=True)
+            if task =='clsf':
+                plt.figure(figsize=(5, 10))
+                plt.pcolor(data, cmap='Blues_r')
+                cols = list(data.columns)
+                plt.xticks(np.arange(0.5, len(cols), 1), cols, rotation=80)
+                plt.show()
+            
+            elif task=='regr':
+                plt.figure(figsize=(20, 10))
+                for col in data.columns:
+                    width = 5 if col == 'Y_TEST' else 1
+                    plt.plot(data[col], label=col, linewidth=width)
+                plt.legend()
+                plt.xticks([])
+                plt.title('RANDOM 200 cases sorted by test value')
+                plt.show()
+                
+            
+            # BEST COMBINATION RESEARCH
+            print('\nThe Best Algorithms Combination:')
+            
+            def powerset(list_name):
+                s = list(list_name)
+                return chain.from_iterable(combinations(s, r) for r in range(len(s)+1))
+
+
+            alg_names = list(all_prediction_df.columns)
+            alg_names.remove('Y_TEST')
+            alg_names.remove('Y_HAT_STACKED')
+
+            for alg_set in powerset(alg_names):
+                if len(alg_set) == 0:
+                    pass
+                else:
+                    alg_list = list(alg_set)
+                    if task =='clsf':
+                        y_hat_set = all_prediction_df.loc[:, list(alg_list)].mode(axis=1)[0].astype('int64')
+                        score_set = metric(all_prediction_df.loc[:, ['Y_TEST']], y_hat_set)
+                        research_best_score[score_set] = alg_list
+                    elif task=='regr':
+                        y_hat_set = all_prediction_df.loc[:, list(alg_list)].mean(axis=1)
+                        score_set = metric(all_prediction_df.loc[:, ['Y_TEST']], y_hat_set)
+                        research_best_score[score_set] = alg_list
+            
+            ascending = True if task=='clsf' else False
+            research_best_scoredict = sorted(research_best_score.items(), reverse=ascending)
+            print(f'\n{metric_name}:      combination\n')
+            i=0
+            color='grey'
+            for k, v in research_best_scoredict:
+                ks, vs  = str(k), str(v)
+                if i == 0:
+                    color='green'
+                    best_list = v[:]
+                if vs == str(alg_names):
+                    color='blue'
+                
+                print("{:30s} {:100s} ".format(colored(ks, color), colored(vs, color)))
+                color='grey'
+                i+=1
+                
+            # THE  BEST
+            if task =='clsf':
+                best_df = data[list(best_list)]
+                best_df['Y_HAT_STACKED'] = data.loc[:, list(best_list)].mode(axis=1)[0].astype('int64')
+                best_df['Y_TEST'] = data['Y_TEST']
+                
+                f, ax = plt.subplots(1, 2, figsize=(10, 10))
+                
+                plt.subplot(1, 2, 1)
+                plt.pcolor(data, cmap='Blues_r')
+                cols = list(all_prediction_df.columns)
+                plt.xticks(np.arange(0.5, len(cols), 1), cols, rotation=80)
+                ax[0].set_title('ALL ALGORITHMS')
+
+                plt.subplot(1, 2, 2)
+                plt.pcolor(best_df, cmap='Blues_r')
+                cols = list(best_list)+['Y_HAT_STACKED']+['Y_TEST']
+                plt.xticks(np.arange(0.5, len(cols), 1), cols, rotation=80)
+                ax[1].set_title('BEST COMPOSITION')
+                
+                f.tight_layout()
+                
+                
+                
+            elif task=='regr':
+                plt.figure(figsize=(20, 10))
+                y_hat_all = data.loc[:, list(alg_names)].mean(axis=1)
+                y_hat_best = data.loc[:, list(best_list)].mean(axis=1)
+                
+                plt.plot(y_hat_best, label=str(best_list), linewidth=1, color='green')
+                plt.plot(y_hat_all, label=str(alg_names), linewidth=1, color='blue')
+                plt.plot(data['Y_TEST'], label='Y_TEST', linewidth=5, color='red')
+                plt.legend()
+                plt.xticks([])
+                plt.title('Compare all algorithms and the best')
+                plt.show()
+                
         return score
-    
+        
     
 
 
@@ -713,6 +803,8 @@ class Snaplib:
         alg_names = []
         for alg in algorithms_list:
             alg_name = alg.__class__.__name__[:3]
+            if alg_name in alg_names:
+                alg_name = alg_name + '_another'
             y_hat = alg.predict(X_pred)
             if task =='clsf':
                 stacked_predicts[alg_name] = y_hat.astype('int64')
@@ -862,6 +954,8 @@ class Snaplib:
         
         for alg in algorithms_list:
             filename = alg.__class__.__name__ + '.sav'
+            if filename in names:
+                filename =  alg.__class__.__name__  + '_another' + '.sav'
             path = directory + filename
             pickle.dump(alg, open(path, 'wb'))
             names.append(filename)
@@ -1136,6 +1230,7 @@ class Snaplib:
 
     def recover_data(self,
                      df_0, 
+                     device='cpu',
                      verbose = 1,
                      ):
         ''' 
@@ -1143,13 +1238,15 @@ class Snaplib:
 
         Use case:
         df = Snaplib().recover_data(df, verbose=True, stacking=True)
-
+        device must be "cpu" or "gpu". Sometime small datasets work faster with cpu.
         if set verbose = if True algorithm runs cross validation tests and print results of tests for decision making.
         And ensemble decrise train/test leakage.
         '''
 
         if not isinstance(df_0, pd.core.frame.DataFrame):
             raise TypeError('The df must be a pandas.core.frame.DataFrame instance.')
+        if device !='cpu' and device != 'gpu':
+            raise ValueError('device must be "cpu" or "gpu".')
         if type(verbose) != int and type(verbose) != bool:
             raise TypeError('verbose must be of int type or bool.')
 
@@ -1269,12 +1366,11 @@ class Snaplib:
                 # Test
                 if verbose:
                     print('CLASSIFIER cross validation:')                    
-                    results=[]
                     test_y_all = np.array([])
                     pred_all = np.array([])
 
                     for k in range(0, K_FOLDS):
-                        lgb_class = lgb.LGBMClassifier(random_state=0, n_jobs=-1)
+                        lgb_class = lgb.LGBMClassifier(random_state=0, n_jobs=-1, device=device)
                         lgb_class.fit(k_fold_dict['train_X'][k], k_fold_dict['train_y'][k])
                         pred = lgb_class.predict(k_fold_dict['test_X'][k])
                         test_y_all = np.concatenate(([test_y_all, k_fold_dict['test_y'][k]]), axis=None)
@@ -1297,7 +1393,7 @@ class Snaplib:
                     
 
                 # Final prediction
-                lgb_class = lgb.LGBMClassifier(random_state=0, n_jobs=-1)
+                lgb_class = lgb.LGBMClassifier(random_state=0, n_jobs=-1, device=device)
                 lgb_class.fit(X, y)
                 pred_miss = lgb_class.predict(miss_df)
 
@@ -1312,11 +1408,10 @@ class Snaplib:
                 if verbose:
                     print('REGRESSOR cross validation:')
 
-                    results=[]
                     test_y_all = np.array([])
                     pred_all = np.array([])
                     for k in range(0, K_FOLDS):
-                        lgb_reg = lgb.LGBMRegressor(n_jobs=-1, random_state=0)
+                        lgb_reg = lgb.LGBMRegressor(n_jobs=-1, random_state=0, device=device)
                         lgb_reg.fit(k_fold_dict['train_X'][k], k_fold_dict['train_y'][k])
                         pred = lgb_reg.predict(k_fold_dict['test_X'][k])
                         if y.min() == 0.0:
@@ -1340,7 +1435,7 @@ class Snaplib:
                     print(f'first 10 y_pred: {list(np.round(pred, 1))}\n')
 
                 # Final prediction
-                lgb_reg = lgb.LGBMRegressor(random_state=0, n_jobs=-1)
+                lgb_reg = lgb.LGBMRegressor(random_state=0, n_jobs=-1, device=device)
                 lgb_reg.fit(X, y)
                 pred_miss = lgb_reg.predict(miss_df)
                 if y.min() == 0:
