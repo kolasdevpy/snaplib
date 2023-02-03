@@ -403,7 +403,7 @@ class Snaplib:
                             algorithms_list, 
                             X_train, 
                             y_train, 
-                            X_pred, 
+                            X_test, 
                             y_test=None, 
                             task='clsf', 
                             verbose=0
@@ -417,7 +417,7 @@ class Snaplib:
                                         algorithms_list, 
                                         X_train, 
                                         y_train, 
-                                        X_pred, 
+                                        X_test, 
                                         y_test or None, 
                                         task='clsf' or 'regr', 
                                         verbose= 0, 1, 2
@@ -425,7 +425,7 @@ class Snaplib:
         
         algorithms_list = list of algorithms [LGBMClassifier(), XGBClassifier(), CatBoostClassifier()].
         X_train and y_train are data for training list of algorithms.
-        X_pred is dataframe for prediction.
+        X_test is dataframe for prediction.
         y_test optionaly. If exist visualize it as last column on a plot (verbose=True). 
         task='clsf' or 'regr', classification or regression
         verbose = 0 mute, 1 verbose.
@@ -435,7 +435,7 @@ class Snaplib:
             raise TypeError('algorithms_list must be of list type.')
         if not isinstance(X_train, pd.core.frame.DataFrame):
             raise TypeError('The X__train must be a pandas.core.frame.DataFrame instance.')
-        if not isinstance(X_pred, pd.core.frame.DataFrame):
+        if not isinstance(X_test, pd.core.frame.DataFrame):
             raise TypeError('The X__pred must be a pandas.core.frame.DataFrame instance.')
 
         if not isinstance(y_train, pd.core.frame.Series) and not isinstance(y_train, np.ndarray):
@@ -456,17 +456,21 @@ class Snaplib:
         stacked_predicts = pd.DataFrame()
         alg_names = []
         increment = 1
-        for alg in algorithms_list:
-            alg_name = alg.__class__.__name__[:3]
+        for algorithm in algorithms_list:
+            alg = algorithm[0]
+            params = algorithm[1]
+            alg_name = alg.__name__[:3]
             if alg_name in alg_names:
                 alg_name = alg_name + '_' + str(increment)
                 increment+=1
-            # if y_test is not None and alg_name in ['LGB', 'XGB', 'Cat']:
-            #     model = alg.fit(X_train, y_train, eval_set=[(X_pred, y_test)], early_stopping_rounds=10, verbose=False)
-            # else:
-            model = alg.fit(X_train, y_train)
+            if y_test is not None and alg_name in ['LGB', 'XGB', 'Cat']:
+                model = alg(**params)
+                model.fit(X_train, y_train, eval_set=[(X_test, y_test)], early_stopping_rounds=200, verbose=False)
+            else:
+                model = alg(**params)
+                model.fit(X_train, y_train)
 
-            y_hat = model.predict(X_pred)
+            y_hat = model.predict(X_test)
             if task =='clsf':
                 stacked_predicts[alg_name] = y_hat.astype('int64')
             elif task=='regr':
@@ -538,7 +542,7 @@ class Snaplib:
         results=[]    
         all_prediction_df = pd.DataFrame()
         research_best_score=dict()
-        
+
 
         for k in range(0, cv):
             pred_frame = self.fit_predict_stacked(algorithms, 
@@ -547,24 +551,24 @@ class Snaplib:
                                                     k_fold_dict['test_X'][k], 
                                                     k_fold_dict['test_y'][k], 
                                                     task,
-                                                    verbose
+                                                    verbose,
                                                     )
 
             pred = pred_frame.loc[:, 'Y_HAT_STACKED']
             score = metric(k_fold_dict['test_y'][k], pred)
             results.append(score)
-            
+
             if verbose:
                 all_prediction_df = pd.concat([all_prediction_df, pred_frame], ignore_index=True)
 
         results_std = np.std(results)
         score = sum(results) / len(results)
 
-        
+
         if verbose:
             all_prediction_df.reset_index(drop=True, inplace=True)
             for alg in algorithms:
-                print(alg.__class__.__name__)
+                print(alg[0].__name__)
 
             print('')
             if str(metric).split('.')[0] == 'functools':
@@ -580,9 +584,9 @@ class Snaplib:
                 cm = confusion_matrix(all_prediction_df.loc[:, 'Y_TEST'], all_prediction_df.loc[:, 'Y_HAT_STACKED'])
                 sns.heatmap(cm, annot=True, cmap="Blues", fmt='.0f',  cbar=False)
                 plt.show()
-                
-                
-                
+
+
+
             rng = np.random.default_rng()
             idx = set(rng.integers(len(all_prediction_df)-1, size=200))
 
@@ -595,7 +599,7 @@ class Snaplib:
                 cols = list(data.columns)
                 plt.xticks(np.arange(0.5, len(cols), 1), cols, rotation=80)
                 plt.show()
-            
+
             elif task=='regr':
                 plt.figure(figsize=(20, 10))
                 for col in data.columns:
@@ -605,11 +609,11 @@ class Snaplib:
                 plt.xticks([])
                 plt.title('RANDOM 200 cases sorted by test value')
                 plt.show()
-                
-            
+
+
             # BEST COMBINATION RESEARCH
             print('\nThe Best Algorithms Combination:')
-            
+
             def powerset(list_name):
                 s = list(list_name)
                 return chain.from_iterable(combinations(s, r) for r in range(len(s)+1))
@@ -632,7 +636,7 @@ class Snaplib:
                         y_hat_set = all_prediction_df.loc[:, list(alg_list)].mean(axis=1)
                         score_set = metric(all_prediction_df.loc[:, ['Y_TEST']], y_hat_set)
                         research_best_score[score_set] = alg_list
-            
+
             ascending = True if task=='clsf' else False
             research_best_scoredict = sorted(research_best_score.items(), reverse=ascending)
             print(f'\n{metric_name}:      combination\n')
@@ -645,19 +649,19 @@ class Snaplib:
                     best_list = v[:]
                 if vs == str(alg_names):
                     color='blue'
-                
+
                 print("{:30s} {:100s} ".format(colored(ks, color), colored(vs, color)))
                 color='grey'
                 i+=1
-                
-            # THE  BEST
+
+            # THE  BEST  SHOW  PLOT
             if task =='clsf':
                 best_df = data[list(best_list)]
                 best_df['Y_HAT_STACKED'] = data.loc[:, list(best_list)].mode(axis=1)[0].astype('int64')
                 best_df['Y_TEST'] = data['Y_TEST']
-                
+
                 f, ax = plt.subplots(1, 2, figsize=(10, 10))
-                
+
                 plt.subplot(1, 2, 1)
                 plt.pcolor(data, cmap='Blues_r')
                 cols = list(all_prediction_df.columns)
@@ -669,16 +673,16 @@ class Snaplib:
                 cols = list(best_list)+['Y_HAT_STACKED']+['Y_TEST']
                 plt.xticks(np.arange(0.5, len(cols), 1), cols, rotation=80)
                 ax[1].set_title('BEST COMPOSITION')
-                
+
                 f.tight_layout()
-                
-                
-                
+
+
+
             elif task=='regr':
                 plt.figure(figsize=(20, 10))
                 y_hat_all = data.loc[:, list(alg_names)].mean(axis=1)
                 y_hat_best = data.loc[:, list(best_list)].mean(axis=1)
-                
+
                 plt.plot(y_hat_best, label=str(best_list), linewidth=1, color='green')
                 plt.plot(y_hat_all, label=str(alg_names), linewidth=1, color='blue')
                 plt.plot(data['Y_TEST'], label='Y_TEST', linewidth=5, color='red')
@@ -686,7 +690,7 @@ class Snaplib:
                 plt.xticks([])
                 plt.title('Compare all algorithms and the best')
                 plt.show()
-                
+
         return score
         
     
