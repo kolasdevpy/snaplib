@@ -18,9 +18,8 @@ import lightgbm as lgb
 
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_absolute_error
-from sklearn.metrics import classification_report, confusion_matrix
-from sklearn.metrics import f1_score
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.metrics import f1_score, classification_report, confusion_matrix
 
 
 from itertools import chain, combinations
@@ -289,7 +288,7 @@ class Snaplib:
 
 
 
-    def encode_dataframe(self, df):
+    def encode_dataframe(self, df_0):
         '''
         encode a dataframe
 
@@ -297,13 +296,14 @@ class Snaplib:
         df = Snaplib().encode_dataframe(df)
         '''
 
-        if not isinstance(df, pd.core.frame.DataFrame):
+        if not isinstance(df_0, pd.core.frame.DataFrame):
             raise TypeError('The df must be a pandas.core.frame.DataFrame instance.')
 
         self.encoder_pool = {}
         self.decoder_pool = {}
         self.encoded_columns = []
 
+        df = df_0.copy()
         types = df.dtypes
         for col in df.columns:
             feature_type = types[col]
@@ -610,15 +610,23 @@ class Snaplib:
             print("%s %0.6f (std: +/- %0.2f)" % (metric_name, score, results_std))
             print('\n', results, '\n')
 
+
+            y_test = all_prediction_df.loc[:, 'Y_TEST']
+            y_pred = all_prediction_df.loc[:, 'Y_HAT_STACKED']
             if task == 'clsf':
-                print('\n', classification_report(all_prediction_df['Y_TEST'], all_prediction_df.loc[:, 'Y_HAT_STACKED']), '\n')
+                print('\n', classification_report(y_test, y_pred), '\n')
                 plt.figure(figsize=(3, 3))
-                cm = confusion_matrix(all_prediction_df.loc[:, 'Y_TEST'], all_prediction_df.loc[:, 'Y_HAT_STACKED'])
+                cm = confusion_matrix(y_test, y_pred)
                 heatmap(cm, annot=True, cmap="Blues", fmt='.0f',  cbar=False)
                 plt.show()
+            elif task == 'regr':
+                print('')
+                print('MAE    : %0.6f ' % mean_absolute_error(y_test, y_pred))
+                print('RMSE   : %0.6f ' % mean_squared_error(y_test, y_pred)**0.5)
+                print('R2     : %0.6f ' % r2_score(y_test, y_pred))
 
 
-
+            # SHOW PLOTS
             rng = np.random.default_rng()
             idx = set(rng.integers(len(all_prediction_df)-1, size=200))
 
@@ -651,20 +659,19 @@ class Snaplib:
                 alg_names.remove('Y_TEST')
                 alg_names.remove('Y_HAT_STACKED')
 
-
                 all_combinations = list(powerset(alg_names))
                 num_combinations = len(all_combinations) -1
 
-                results_pool = []
-                
                 list_metrics = [metric]*num_combinations
-                
+                params = zip(all_combinations[1:], list_metrics)
+
+                results_pool = []
                 if task =='clsf':
                     with Pool(cpu_num) as p:
-                        results_pool.append(p.map(self.get_score_clsf, zip(all_combinations[1:], list_metrics)))
+                        results_pool.append(p.map(self.get_score_clsf, params))
                 elif task=='regr':
                     with Pool(cpu_num) as p:
-                        results_pool.append(p.map(self.get_score_regr, zip(all_combinations[1:], list_metrics)))
+                        results_pool.append(p.map(self.get_score_regr, params))
 
                 for line in results_pool[0]:
                     key, value = line[0], line[1]
@@ -943,7 +950,12 @@ class Snaplib:
         scores_df = pd.DataFrame(index = features, columns=['cv_score'])
         
         k_folds_dict_data = self.k_folds_split(df[features], target, cv)
-        score_with_all_features  = self.cross_val(algorithms, k_folds_dict_data, metric, task='clsf', cv=cv, verbose=0)
+        score_with_all_features  = self.cross_val(algorithms,
+                                                  k_folds_dict_data, 
+                                                  metric, 
+                                                  task='clsf', 
+                                                  cv=cv, 
+                                                  verbose=0)
         if verbose:
             print(f'{score_with_all_features}     General cv_score with all features')
         
@@ -951,7 +963,12 @@ class Snaplib:
         while score_with_all_features <= cv_score_of_bad_feature:
             scores_df = pd.DataFrame(index = features, columns=['cv_score'])
             k_folds_dict_data = self.k_folds_split(df[features], target, cv)
-            score_with_all_features  = self.cross_val(algorithms, k_folds_dict_data, metric, task='clsf', cv=cv, verbose=0)
+            score_with_all_features  = self.cross_val(algorithms, 
+                                                      k_folds_dict_data, 
+                                                      metric, 
+                                                      task='clsf', 
+                                                      cv=cv, 
+                                                      verbose=0)
             if verbose:
                 print('\n\n')
                 print(f'{len(features)} number of features')
@@ -963,7 +980,12 @@ class Snaplib:
                     fit_faetures = features[:]
                     fit_faetures.remove(without_feature)
                     k_folds_dict_data = self.k_folds_split(df[fit_faetures], target, cv)
-                    score  = self.cross_val(algorithms, k_folds_dict_data, metric, task='clsf', cv=cv, verbose=0)
+                    score  = self.cross_val(algorithms, 
+                                            k_folds_dict_data, 
+                                            metric, 
+                                            task='clsf', 
+                                            cv=cv, 
+                                            verbose=0)
                     scores_df.loc[without_feature] = score
                     if verbose:
                         print("{:1.8f}   {:20}  ".format(score, without_feature))
@@ -976,9 +998,9 @@ class Snaplib:
                 features.remove(bad_feature)
                 droped_features.append(bad_feature)
                 if verbose:
-                    print('--------------------------------------------')
+                    print('='*50,'\n')
                     print(f'    APPEND TO DROP    {bad_feature}')
-                    print('--------------------------------------------')
+                    print('='*50,'\n')
             else:
                 if verbose:
                     print('\n\n')
@@ -1183,7 +1205,7 @@ class Snaplib:
             df = df.sort_values(by=important_functions, ascending=True)
             df = df.reset_index(drop=True)
             if research_iter:
-                print('\n-----------------------------------')
+                print('='*50,'\n')
                 print(f'\nThe Table has been ordered and sorted by columns:\n\n{important_functions}')
             return df
 
@@ -1249,7 +1271,7 @@ class Snaplib:
         df_count = df_count.sort_values(by=columns, ascending=True)
 
         if research_iter:
-            print('\n-----------------------------------')
+            print('='*50,'\n')
             print(df_count)
         
         ordered_predictors = list(df_count.index)
@@ -1268,7 +1290,7 @@ class Snaplib:
         train_test_split_ordered(get_X(df, predictors), get_y(df, target_feature), random_state, test_size=test_size)
 
         if research_iter:
-            print('\n-----------------------------------')
+            print('='*50,'\n')
             if  len(train_y.value_counts()) > CLASSIFIER_FOR_UNIQUE_VALUES_LESS_THAN:
                 print(f'The final result MAE of the custom split:\n\
                 \nMAE:  {regression_score(train_X, test_X, train_y, test_y)}')
@@ -1276,7 +1298,7 @@ class Snaplib:
                 print(f'The final result F1_SCORE(average="macro") of the custom split:\n\nF1_SCORE: \
                 {classification_accuracy(train_X, test_X, train_y, test_y)}')
         if research_iter:
-            print('\n-----------------------------------')
+            print('='*50,'\n')
             finish_time = datetime.datetime.now()
             requared_time = finish_time - init_time
             print(f'Required time:  {str(requared_time)}\n')
@@ -1526,7 +1548,7 @@ class Snaplib:
                 print(f'Imputed Values: {count_miss_values}')
                 print(f'Required time:  {str(requared)}\n')
 
-        # return dataframe state to their initial states (decode, index, types)
+        # return dataframe states to their initial states (decode, index, types)
         df = self.decode_dataframe(df)
 
         for col in df.columns:
