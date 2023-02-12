@@ -12,7 +12,7 @@ ____________________________________________
 
 
 ### Regression    
-<https://www.kaggle.com/artyomkolas/snaplib-user-guide/notebook>
+<https://www.kaggle.com/code/artyomkolas/housing-prices-with-snaplib-top-0-5/notebook>
 
 
 ____________________________________________

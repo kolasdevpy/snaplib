@@ -6,15 +6,19 @@ import warnings
 if not sys.warnoptions:
     warnings.simplefilter("ignore")
 
+from itertools import chain, combinations
+from termcolor import colored
+
+from multiprocessing import Pool
+from multiprocessing import cpu_count
+
 
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 from seaborn import heatmap
 
-
 import lightgbm as lgb
-
 
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
@@ -22,11 +26,7 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.metrics import f1_score, classification_report, confusion_matrix
 
 
-from itertools import chain, combinations
-from termcolor import colored
 
-from multiprocessing import Pool
-from multiprocessing import cpu_count
 
 
 
@@ -244,7 +244,7 @@ class Snaplib:
         self.encoder_pool[column] = {}
         self.decoder_pool[column] = {}
         not_nan_index=df[df[column].notnull()].index
-        values_set = list(set(list(df.loc[not_nan_index, column])))
+        values_set = list(set(list(df.loc[not_nan_index, column])))   # must be sorted?
         value = 0.0
         for el in values_set:
             self.encoder_pool[column][el] = value
@@ -299,11 +299,12 @@ class Snaplib:
         if not isinstance(df_0, pd.core.frame.DataFrame):
             raise TypeError('The df must be a pandas.core.frame.DataFrame instance.')
 
+        df = df_0.copy()
+
         self.encoder_pool = {}
         self.decoder_pool = {}
         self.encoded_columns = []
 
-        df = df_0.copy()
         types = df.dtypes
         for col in df.columns:
             feature_type = types[col]
@@ -521,7 +522,11 @@ class Snaplib:
         Use case:
         score = Snaplib().cross_val(algorithms, k_fold_dict, metric, task, cv, verbose=0):
         
-        algorithms_list = list of algorithms like [LGBMClassifier(), XGBClassifier(), CatBoostClassifier()].
+        algorithms is a list of algorithms like algs = [
+                                                        [LGBMClassifier, dict(params)],
+                                                        [XGBClassifier, dict(params)], 
+                                                        [CatBoostClassifier, dict(params)],
+                                                        ]
         k_fold_dict is a dictionary with the structure:
         
         K_FOLD = 3
@@ -655,6 +660,7 @@ class Snaplib:
             all_prediction_df_columns = list(all_prediction_df.columns)
             if len(all_prediction_df_columns) > 3:
                 print('\nThe Best Algorithms Combination:')
+                print('Quadratic Complexity O(num_algorithms^2)')
                 alg_names = all_prediction_df_columns[:]
                 alg_names.remove('Y_TEST')
                 alg_names.remove('Y_HAT_STACKED')
@@ -1131,7 +1137,6 @@ class Snaplib:
         Set the research_iter arguments to 0 (zero).
 
         5) The number of possible random_state is an equivalent to 1/test_size.
-        6) The necessary libraries are integrated at the beginning of the method.
         '''
 
         if not isinstance(df, pd.core.frame.DataFrame):
@@ -1332,7 +1337,6 @@ class Snaplib:
         df = Snaplib().recover_data(df, verbose=True, stacking=True)
         device must be "cpu" or "gpu". Sometime small datasets work faster with cpu.
         if set verbose = if True algorithm runs cross validation tests and print results of tests for decision making.
-        And ensemble decrise train/test leakage.
         '''
 
         if not isinstance(df_0, pd.core.frame.DataFrame):
@@ -1511,7 +1515,7 @@ class Snaplib:
                         pred_all = np.concatenate((pred_all, pred), axis=None)
 
                     print(f'                   MAE: {mean_absolute_error(test_y_all, pred_all)}')
-                    print(f'                  RMSE: {np.sqrt(((test_y_all - pred_all) ** 2).mean())}')
+                    print(f'                  RMSE: {mean_squared_error(test_y_all,  pred_all) ** 0.5}')
 
                     print(f'min for {target_now}: {df[target_now].min()}')
                     print(f'avg for {target_now}: {df[target_now].mean()}')
