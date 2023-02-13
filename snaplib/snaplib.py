@@ -8,10 +8,7 @@ if not sys.warnoptions:
 
 from itertools import chain, combinations
 from termcolor import colored
-
-from multiprocessing import Pool
-from multiprocessing import cpu_count
-
+from multiprocessing import Pool, cpu_count
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -394,7 +391,7 @@ class Snaplib:
                                                                               target_name, 
                                                                               random_state=i, 
                                                                               test_size=1/k, 
-                                                                              research_iter=0
+                                                                              research=False
                                                                               )
             k_fold_dict['train_X'].append(train_X)
             k_fold_dict['test_X'].append(test_X)
@@ -1109,32 +1106,32 @@ class Snaplib:
 
 
 
-    def train_test_split_balanced(self, 
-                                  df, 
-                                  target_feature, 
-                                  test_size=0.2, 
-                                  random_state=0, 
-                                  research_iter=0
-                                  ):
+    def train_test_split_balanced(self,
+                                df, 
+                                target_feature, 
+                                test_size=0.2, 
+                                random_state=0, 
+                                research=False
+                                ):
         ''' 
         Split the data with the distribution as close as possible 
         to the same in both the train set and the test set, and not only for the target column, 
         but also for all other columns.
 
         Use case:
-        train_X, test_X, train_y, test_y = Snaplib().train_test_split_balanced(df, target_name, test_size=0.2, random_state=0, research_iter=0)
-        
+        train_X, test_X, train_y, test_y = Snaplib().train_test_split_balanced(df, target_name, test_size=0.2, random_state=0, research=True)
+
         1) The input should be a whole DataFrame. It's the first positional argument.
         2) And the second positional argument should be the name of the target feature as a string.
         3) This method has internal testing.
         In this way you can testing the usefulness of the custom split.
-        The first test performing with a random_state values from 0 to research_iter argument by sklearn.model_selection.train_test_split.
-        Before output performing a final testing.
+        The first test performing with a random_state values from 0 to 1/test_size by sklearn.model_selection.train_test_split.
+        Before split performing a final testing with Snaplib().train_test_split_balanced.
 
-        You can perform testing by specifying the value of the research_iter argument > 0.
+        You can perform testing by specifying the value of the research argument = True.
 
         4) If you are convinced that the method is useful. You can silence the method.
-        Set the research_iter arguments to 0 (zero).
+        Set the research arguments to False.
 
         5) The number of possible random_state is an equivalent to 1/test_size.
         '''
@@ -1147,71 +1144,77 @@ class Snaplib:
             raise TypeError('test_size must be of float type in [0.0, 1.0].')
         if type(random_state) != int:
             raise TypeError('random_state must be of int type.')
-        if type(research_iter) != int:
-            raise TypeError('research_iter must be of int type. Recomended interval [0:100]')
+        if type(research) != bool:
+            raise TypeError('research must be of bool type.')
 
-        
+
         CLASSIFIER_FOR_UNIQUE_VALUES_LESS_THAN = 20
         df_count = pd.DataFrame()
-        
-        
+
+
         def get_predictors(df, target_feature):
             predictors = list(df.columns)
             predictors.remove(target_feature)
             return predictors
-        
-        
+
+
         def get_X(df, predictors):
-            X = df[predictors]
-            return X
-        
-        
+            return df[predictors]
+
+
         def get_y(df, target_feature):
-            y = df[[target_feature]]
-            return y
-        
-        
+            return df[[target_feature]]
+
+
         def regression_score(train_X, test_X, train_y, test_y):
             model = lgb.LGBMRegressor(random_state=0).fit(train_X, train_y)
             predict = model.predict(test_X)
             return mean_absolute_error(predict, test_y)
-        
-        
-        def classification_accuracy(train_X, test_X, train_y, test_y):
+
+
+        def classification_score(train_X, test_X, train_y, test_y):
             model = lgb.LGBMClassifier(random_state=0).fit(train_X, train_y.values.ravel())
             predict = model.predict(test_X)
             return f1_score(predict, test_y.values.ravel(), average='macro')
-        
-        
-        def get_research(X, y, target_feature, test_size, research_iter):
-            RESULTS = pd.DataFrame()
-            if len(y.value_counts()) > CLASSIFIER_FOR_UNIQUE_VALUES_LESS_THAN:
-                print('Regression test by sklearn.model_selection.train_test_split:\n')
-                for random_state in range(0,research_iter):
-                    train_X, test_X, train_y, test_y = train_test_split(X, y, test_size=test_size, random_state=random_state)
-                    RESULTS.loc[random_state, 'score'] = regression_score(train_X, test_X, train_y, test_y)
-                print(f'Regression MAE with random_state from 0 to {research_iter - 1}:')
-            else:
-                print('Classification test by sklearn.model_selection.train_test_split  with stratify=y:\n')
-                print(f'Target feature has {len(y.value_counts())} unique values.')
-                for random_state in range(0,research_iter):
-                    train_X, test_X, train_y, test_y = train_test_split(X, y, test_size=test_size, random_state=random_state, stratify=y)
-                    RESULTS.loc[random_state, 'score'] = classification_accuracy(train_X, test_X, train_y, test_y)
-                print(f'classification F1_SCORE(average="macro") with random_state from 0 to {research_iter - 1}:')
 
-            print(f'max:  {RESULTS.score.max()}')
-            print(f'mean: {RESULTS.score.mean()}')
-            print(f'min:  {RESULTS.score.min()}\n')
-            del RESULTS
+
+        def get_research(X, y, target_feature, test_size, split):
+            nums_research = int(1/test_size)
+            results = []
+            if len(y.value_counts()) > CLASSIFIER_FOR_UNIQUE_VALUES_LESS_THAN:
+                metric_name = 'MAE'
+                print('regression test')
+                for rs in range(0, nums_research):
+                    if split == 'sklearn':
+                        train_X, test_X, train_y, test_y = train_test_split(X, y, test_size=test_size, random_state=rs)
+                    if split == 'balanced':
+                        train_X, test_X, train_y, test_y = train_test_split_ordered(X, y, random_state=rs, test_size=test_size)
+                    score = regression_score(train_X, test_X, train_y, test_y)
+                    results.append(score)
+                print(f'{metric_name} with random_state from 0 to {nums_research - 1}:')
+            else:
+                metric_name = 'f1_score'
+                print('classification test')
+                if split == 'sklearn':
+                    print('with stratify=y')
+                for rs in range(0, nums_research):
+                    if split == 'sklearn':
+                        train_X, test_X, train_y, test_y = train_test_split(X, y, test_size=test_size, random_state=rs, stratify=y)
+                    if split == 'balanced':
+                        train_X, test_X, train_y, test_y = train_test_split_ordered(X, y, random_state=rs, test_size=test_size)
+                    score = classification_score(train_X, test_X, train_y, test_y)
+                    results.append(score)
+                print(f'{metric_name}(average="macro") with random_state from 0 to {nums_research -1}:')
+            results_std = np.std(results)
+            score = sum(results) / len(results)
+            print("%s %0.6f (std: +/- %0.4f)" % (metric_name, score, results_std))
+            print(results, '\n')
             return 0
-            
-        
+
+
         def order_and_sort_table(df, important_functions):
             df = df.sort_values(by=important_functions, ascending=True)
             df = df.reset_index(drop=True)
-            if research_iter:
-                print('='*50,'\n')
-                print(f'\nThe Table has been ordered and sorted by columns:\n\n{important_functions}')
             return df
 
 
@@ -1219,31 +1222,28 @@ class Snaplib:
             train_indexes = []
             test_indexes = []
             len_idxs = X.shape[0]
-            
+
             every_n_el = int(1/test_size)
             increment = random_state % len_idxs % every_n_el
-            
+
             for el in X.index:
                 if (el + increment) % every_n_el:
                     train_indexes.append(el)
                 else:
                     test_indexes.append(el)
-                    
-    #         train_indexes = list(filter(lambda x: (x + increment) % every_n_el, X.index))
-    #         test_indexes = list(filter(lambda x: not (x + increment) % every_n_el, X.index))
 
             train_X = X.iloc[train_indexes]
             train_y = y.iloc[train_indexes, 0]
             test_X = X.iloc[test_indexes]
             test_y = y.iloc[test_indexes, 0]
-                    
+
             return train_X, test_X, train_y, test_y
-        
-        
+
+
         def visualize(train_array, test_array, column_name, train_str, test_str):   
             n_bins = 20    
             f, ax = plt.subplots(1, 2, figsize=(13, 4))
-            
+
             plt.subplot(1, 2, 1)
             plt.hist(train_array, bins=n_bins)
             plt.xlabel('values')
@@ -1258,27 +1258,27 @@ class Snaplib:
 
             f.tight_layout()
             return None
-            
-        
+
+
 
 
         # main
-        init_time = datetime.datetime.now()
-        predictors = get_predictors(df, target_feature)
-        if research_iter:
-            get_research(get_X(df, predictors), get_y(df, target_feature), target_feature, test_size, research_iter)
-        
+        predictors = get_predictors(df, target_feature) 
         for el in df.columns:
             count = len(df[el].value_counts())
             df_count.loc[el, 'counts'] = count
-        
-        columns = list(df_count.columns)
-        df_count = df_count.sort_values(by=columns, ascending=True)
+        df_count.sort_values(by='counts', ascending=True, inplace=True)
 
-        if research_iter:
+        if research:
+            print('TEST by sklearn.model_selection.train_test_split:')
+            get_research(get_X(df, predictors), get_y(df, target_feature), target_feature, test_size, split='sklearn')
+            
             print('='*50,'\n')
+            print('The Table has been ordered and sorted by columns:')
             print(df_count)
-        
+            print('')
+            init_time = datetime.datetime.now()
+
         ordered_predictors = list(df_count.index)
         if len(df[target_feature].value_counts()) <= CLASSIFIER_FOR_UNIQUE_VALUES_LESS_THAN:
             ordered_predictors.remove(target_feature)
@@ -1286,29 +1286,26 @@ class Snaplib:
         else:
             ordered_columns = ordered_predictors[:]
         df = df[ordered_columns]
-        
+
         df = order_and_sort_table(df, ordered_columns)
         predictors = get_predictors(df, target_feature)
-        
+
 
         train_X, test_X, train_y, test_y = \
-        train_test_split_ordered(get_X(df, predictors), get_y(df, target_feature), random_state, test_size=test_size)
+        train_test_split_ordered(get_X(df, predictors), get_y(df, target_feature), random_state=random_state, test_size=test_size)
+        
 
-        if research_iter:
-            print('='*50,'\n')
-            if  len(train_y.value_counts()) > CLASSIFIER_FOR_UNIQUE_VALUES_LESS_THAN:
-                print(f'The final result MAE of the custom split:\n\
-                \nMAE:  {regression_score(train_X, test_X, train_y, test_y)}')
-            else:
-                print(f'The final result F1_SCORE(average="macro") of the custom split:\n\nF1_SCORE: \
-                {classification_accuracy(train_X, test_X, train_y, test_y)}')
-        if research_iter:
-            print('='*50,'\n')
+
+
+        if research:
             finish_time = datetime.datetime.now()
             requared_time = finish_time - init_time
-            print(f'Required time:  {str(requared_time)}\n')
+            print(f'Split required time:  {str(requared_time)}\n')
             
-        if research_iter:
+            print('='*50,'\n')
+            print('TEST by train_test_split_balanced:')
+            get_research(get_X(df, predictors), get_y(df, target_feature), target_feature, test_size, split='balanced')
+            
             print('\n===============   DISTRIBUTIONS   ===============\n\n')
             visualize(train_y, test_y, target_feature, ' train_y_TARGET', ' test_y_TARGET')
             for column in train_X.columns:
