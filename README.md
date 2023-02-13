@@ -33,10 +33,11 @@ sl = Snaplib()
 6. sl.encode_dataframe     
 7. sl.decode_dataframe     
 8. sl.k_folds_split     
-### For one and list of algorithms    
+### For one and list of algorithms with bagging
 9. sl.cross_val    
-10. sl.features_selection_clsf     
-11. sl.fit_stacked     
-12. sl.save_stack     
-13. sl.load_stack     
-14. sl.predict_stacked      
+10. features_selection_regr
+11. sl.features_selection_clsf     
+12. sl.fit_stacked     
+13. sl.save_stack     
+14. sl.load_stack     
+15. sl.predict_stacked      

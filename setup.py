@@ -7,7 +7,7 @@ requirements = ["pandas>=1", "numpy>=1"]
 
 setup(
     name="snaplib",
-    version="0.2.7",
+    version="0.2.8",
     author="Artyom Kolas",
     author_email="artyom.kolas@gmail.com",
     description="Data preprocessing lib",

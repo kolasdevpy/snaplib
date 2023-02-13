@@ -906,6 +906,123 @@ class Snaplib:
 
 
 
+    def features_selection_regr(self, algorithms, df, target, metric, cv, verbose=0):
+
+
+        ''' 
+        Select bests features for modeling and return list with bad features required to be droped.
+
+        Use case:
+        features_to_drop = Snaplib().features_selection_regr(algorithms, df, target, metric, cv, verbose=0):
+        df.drop(features_to_drop, inplace=True, axis=1)
+
+
+        algorithms is a list of algorithms like algs = [
+                                                        [LGBMClassifier, dict(params)],
+                                                        [XGBClassifier, dict(params)], 
+                                                        [CatBoostClassifier, dict(params)],
+                                                        ]
+
+        df = pandas.core.frame.DataFrame.
+        target = name of target of str type.
+
+        metric is a metric like f1_score or mean_absolute_error.
+        cv is num K_FOLD integer 
+        verbose = 0 mute, 1 verbose.
+
+        '''
+
+        if type(algorithms) != list:
+            raise TypeError('The algorithms must be of list type.')
+        if len(algorithms) == 0:
+            raise ValueError('algorithms_listt is empty.')
+        if not isinstance(df, pd.core.frame.DataFrame):
+            raise TypeError('The df must be a pandas.core.frame.DataFrame instance.')
+        if type(target) != str:
+            raise TypeError('target_feature must be of str type.')
+        if type(cv) != int:
+            raise TypeError('cv must be of int type.')
+        if type(verbose) != int and type(verbose) != bool:
+            raise TypeError('verbose must be of int type or bool.')
+
+
+
+
+
+
+
+        cv_score_of_bad_feature = 0
+        droped_features = []
+        features = list(df.columns)
+        scores_df = pd.DataFrame(index = features, columns=['cv_score'])
+
+        k_folds_dict_data = self.k_folds_split(df[features], target, cv)
+        score_with_all_features  = self.cross_val(algorithms,
+                                                k_folds_dict_data, 
+                                                metric, 
+                                                task='regr', 
+                                                cv=cv, 
+                                                verbose=0)
+        if verbose:
+            print(f'{score_with_all_features}     General cv_score with all features')
+
+
+        while score_with_all_features >= cv_score_of_bad_feature:
+            scores_df = pd.DataFrame(index = features, columns=['cv_score'])
+            k_folds_dict_data = self.k_folds_split(df[features], target, cv)
+            score_with_all_features  = self.cross_val(algorithms, 
+                                                    k_folds_dict_data, 
+                                                    metric, 
+                                                    task='regr', 
+                                                    cv=cv, 
+                                                    verbose=0)
+            if verbose:
+                print('\n\n')
+                print(f'{len(features)} number of features')
+                print("{:1.8f}   {:20}  ".format(score_with_all_features, 'BASE cv_score with all features'))
+                print('\n\nwithou feature\n')
+
+            for without_feature in features:
+                if without_feature != target:
+                    fit_faetures = features[:]
+                    fit_faetures.remove(without_feature)
+                    k_folds_dict_data = self.k_folds_split(df[fit_faetures], target, cv)
+                    score  = self.cross_val(algorithms, 
+                                            k_folds_dict_data, 
+                                            metric, 
+                                            task='regr', 
+                                            cv=cv, 
+                                            verbose=0)
+                    scores_df.loc[without_feature] = score
+                    if verbose:
+                        print("{:1.8f}   {:20}  ".format(score, without_feature))
+
+            scores_df = scores_df.sort_values(by=['cv_score'], ascending=True)
+            bad_feature = scores_df.index[0]
+            cv_score_of_bad_feature = scores_df.iloc[0][0]
+
+            if score_with_all_features >= cv_score_of_bad_feature:
+                features.remove(bad_feature)
+                droped_features.append(bad_feature)
+                if verbose:
+                    print('='*50,'\n')
+                    print(f'    APPEND TO DROP    {bad_feature}')
+                    print('='*50,'\n')
+            else:
+                if verbose:
+                    print('\n\n')
+                    print(f'These features have been droped:\n{droped_features}')
+                    print('\n\n')
+                return droped_features
+
+
+
+
+
+
+
+
+
 
     def features_selection_clsf(self, algorithms, df, target, metric, cv, verbose=0):
         
@@ -914,11 +1031,16 @@ class Snaplib:
         Select bests features for modeling and return list with bad features required to be droped.
         
         Use case:
-        features_to_drop = Snaplib().features_selection_clsf(self, algorithms, df, target, metric, cv, verbose=0):
+        features_to_drop = Snaplib().features_selection_clsf(algorithms, df, target, metric, cv, verbose=0):
         df.drop(features_to_drop, inplace=True, axis=1)
 
 
-        algorithms_list = list of algorithms like [LGBMClassifier(), XGBClassifier(), CatBoostClassifier()].
+        algorithms is a list of algorithms like algs = [
+                                                        [LGBMClassifier, dict(params)],
+                                                        [XGBClassifier, dict(params)], 
+                                                        [CatBoostClassifier, dict(params)],
+                                                        ]
+
         df = pandas.core.frame.DataFrame.
         target = name of target of str type.
               
@@ -1131,9 +1253,11 @@ class Snaplib:
         You can perform testing by specifying the value of the research argument = True.
 
         4) If you are convinced that the method is useful. You can silence the method.
-        Set the research arguments to False.
+        Set the research argument to False.
 
         5) The number of possible random_state is an equivalent to 1/test_size.
+
+        TESTS on https://www.kaggle.com/artyomkolas/train-test-split-balanced-custom-in-snaplib/notebook
         '''
 
         if not isinstance(df, pd.core.frame.DataFrame):
@@ -1178,7 +1302,7 @@ class Snaplib:
             return f1_score(predict, test_y.values.ravel(), average='macro')
 
 
-        def get_research(X, y, target_feature, test_size, split):
+        def get_research(X, y, test_size, split):
             nums_research = int(1/test_size)
             results = []
             if len(y.value_counts()) > CLASSIFIER_FOR_UNIQUE_VALUES_LESS_THAN:
@@ -1271,7 +1395,7 @@ class Snaplib:
 
         if research:
             print('TEST by sklearn.model_selection.train_test_split:')
-            get_research(get_X(df, predictors), get_y(df, target_feature), target_feature, test_size, split='sklearn')
+            get_research(get_X(df, predictors), get_y(df, target_feature), test_size, split='sklearn')
             
             print('='*50,'\n')
             print('The Table has been ordered and sorted by columns:')
@@ -1304,7 +1428,7 @@ class Snaplib:
             
             print('='*50,'\n')
             print('TEST by train_test_split_balanced:')
-            get_research(get_X(df, predictors), get_y(df, target_feature), target_feature, test_size, split='balanced')
+            get_research(get_X(df, predictors), get_y(df, target_feature), test_size, split='balanced')
             
             print('\n===============   DISTRIBUTIONS   ===============\n\n')
             visualize(train_y, test_y, target_feature, ' train_y_TARGET', ' test_y_TARGET')
