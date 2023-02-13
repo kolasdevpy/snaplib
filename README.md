@@ -35,7 +35,7 @@ sl = Snaplib()
 8. sl.k_folds_split     
 ### For one and list of algorithms with bagging
 9. sl.cross_val    
-10. features_selection_regr
+10. sl.features_selection_regr
 11. sl.features_selection_clsf     
 12. sl.fit_stacked     
 13. sl.save_stack     
