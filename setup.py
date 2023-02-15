@@ -7,7 +7,7 @@ requirements = ["pandas>=1", "numpy>=1"]
 
 setup(
     name="snaplib",
-    version="0.2.8",
+    version="0.2.9",
     author="Artyom Kolas",
     author_email="artyom.kolas@gmail.com",
     description="Data preprocessing lib",
@@ -18,7 +18,7 @@ setup(
     install_requires=requirements,
     classifiers=[
         "Programming Language :: Python :: 3.7",
-        "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+        "License :: OSI Approved :: Apache License Version 2.0, January 2004",
     ],
 )
 

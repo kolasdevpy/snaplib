@@ -6,18 +6,18 @@ import warnings
 if not sys.warnoptions:
     warnings.simplefilter("ignore")
 
-from itertools import chain, combinations
 from termcolor import colored
+from itertools import chain, combinations
 from multiprocessing import Pool, cpu_count
 
-import matplotlib.pyplot as plt
+
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
 from seaborn import heatmap
 
 import lightgbm as lgb
 
-from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.metrics import f1_score, classification_report, confusion_matrix
@@ -946,11 +946,6 @@ class Snaplib:
             raise TypeError('verbose must be of int type or bool.')
 
 
-
-
-
-
-
         cv_score_of_bad_feature = 0
         droped_features = []
         features = list(df.columns)
@@ -1064,11 +1059,6 @@ class Snaplib:
             raise TypeError('verbose must be of int type or bool.')
 
 
-
-
-
-
-            
         cv_score_of_bad_feature = 1
         droped_features = []
         features = list(df.columns)
@@ -1450,6 +1440,7 @@ class Snaplib:
                      df_0, 
                      device='cpu',
                      verbose = 1,
+                     discrete_columns='auto', 
                      ):
         ''' 
         Imputing of missing values (np.nan) in tabular data, not TimeSeries.
@@ -1458,6 +1449,7 @@ class Snaplib:
         df = Snaplib().recover_data(df, verbose=True, stacking=True)
         device must be "cpu" or "gpu". Sometime small datasets work faster with cpu.
         if set verbose = if True algorithm runs cross validation tests and print results of tests for decision making.
+        discrete_columns = ['col_name_1', 'col_name_2', 'col_name_3', 'etc']
         '''
 
         if not isinstance(df_0, pd.core.frame.DataFrame):
@@ -1466,12 +1458,32 @@ class Snaplib:
             raise ValueError('device must be "cpu" or "gpu".')
         if type(verbose) != int and type(verbose) != bool:
             raise TypeError('verbose must be of int type or bool.')
+        if not isinstance(discrete_columns, list) and discrete_columns != 'auto':
+            raise TypeError('The discrete_columns must be a list instance or string "auto".')
+        
 
 
         counter_predicted_values = 0
         CLASS_VALUE_COUNTS = 30
         K_FOLDS = 4
-        miss_indeces = None
+        
+        
+        warning_switch = 'WARNING:\nYou have a lot of unique values for this discrete column, more tahn 100.\
+                                    \nPrediction and imputing has been switched to regression. \
+                                    \nTry encode this column and restart this algorithm.\
+                                    \nOtherwise you can include this feature to argument discrete_columns=[] \
+                                    \nfor forced classification. It will take a very long time.\n'
+
+        warning_time = 'WARNING:\nYou have a lot of unique values for this column and classification, more tahn 30.\
+                                \nIt will take a very long time. Probably encoding and restart improve the situation.'
+
+
+        advice_text = 'ADVICE:  \nYou can try include this feature to argument discrete_columns=[] \
+                                \nfor forced classification. Probably it improve precision. \
+                                \nOr set discrete_columns="auto"'
+        
+        
+        
 
 
         def get_predictors(columns, target_column):
@@ -1482,13 +1494,20 @@ class Snaplib:
 
 
         def normalize_data(df_in, columns):
+            df = df_in.copy()
             for col in columns:
-                min_x = df_in[col].min()
-                max_x = df_in[col].max()
-                df_in[col] = (df_in[col] - min_x) / (max_x - min_x)
-                df_in[col] = np.log1p(df_in[col])
-            return df_in
+                min_x = df[col].min()
+                max_x = df[col].max()
+                df[col] = (df[col] - min_x) / (max_x - min_x)
+                df[col] = np.log1p(df[col])
+            return df
 
+        
+        def denormalize_targ(arr, min_y, max_y):
+            arr = np.expm1(arr)
+            arr = (arr * (max_y - min_y)) + min_y
+            return arr
+            
 
 
 
@@ -1519,7 +1538,8 @@ class Snaplib:
                 discrete_features.append(col)
 
 
-        # work with each column containing NaNs
+
+        # work with EACH COLUMN containing NaNs
         for target_now in all_miss_features:
             if verbose:
                 init_iter_time = datetime.datetime.now()
@@ -1529,7 +1549,6 @@ class Snaplib:
             predictors.remove(target_now)
 
             continuous_features_now = get_predictors(continuous_features, target_now)
-            # discrete_features_now = get_predictors(discrete_features, target_now)
 
             # indexes of missing data in target_now (data for prediction)
             miss_indeces = list((df[pd.isnull(df[target_now])]).index)
@@ -1538,134 +1557,174 @@ class Snaplib:
             # data without NaN rows (X data for train & evaluation of model)
             work_indeces = list(set(df_indeces) - set(miss_indeces))
 
+            df_normzd = normalize_data(df, continuous_features_now)
             # X data for predict target NaNs
-            miss_df = df.loc[miss_indeces, predictors]
-            miss_df = normalize_data(miss_df, continuous_features_now)
-
+            miss_df = df_normzd.loc[miss_indeces, predictors]
             # X data for train and model evaluation 
-            work_df = df.iloc[work_indeces, : ]
-            work_df = normalize_data(work_df, continuous_features_now)
-
-            X = work_df[predictors]
-            y = work_df[target_now]
-            y[y == -np.inf] = 0
-            y[y == np.inf] = 0
-
-
-            target_values_counted = y.value_counts()
+            work_df = df_normzd.iloc[work_indeces, : ]
+            
+            
+            target_values_counted = work_df[target_now].value_counts()
             len_target_values_counted = len(target_values_counted)
-
-
             feature_type_target = data_info.loc[target_now, 'col_type']
-
-
-            if len_target_values_counted <= CLASS_VALUE_COUNTS or feature_type_target == 'object':
-                labelencoder = LabelEncoder()
-                y = labelencoder.fit_transform(y).astype('int64')
-                work_df[target_now] = work_df[target_now].astype('int64')
-            else:
-                # normalization
-                min_y = y.min()
-                max_y = y.max()
-                y = (y - min_y) / (max_y - min_y)
-                y = np.log1p(y)
-
+                        
+            
             # Info
             if verbose:
                 percent_missing_data = data_info.loc[target_now, 'NaN_percent']
                 print(f'Feature: {target_now}, missing values: {percent_missing_data}%\n')
-                # split for testing
-                k_fold_dict = self.k_folds_split(work_df, target_now, K_FOLDS)
+            
 
-            # PREDICTIONS CLASSIFIER
-            if len_target_values_counted < CLASS_VALUE_COUNTS or feature_type_target == 'object':
+            # FORK to classification or regression
+            classification = False
+            to_int_flag = False
+            
+            if feature_type_target == 'object':
+                if len_target_values_counted > 100:
+                    classification = False
+                    print(colored(target_now, 'red'))
+                    print(colored(warning_switch, 'red'))
+                    to_int_flag = True
+                    
+            if isinstance(discrete_columns, list):
+                if target_now in discrete_columns:
+                    classification = True
+                    if len_target_values_counted > CLASS_VALUE_COUNTS:
+                        if verbose:
+                            print(colored(warning_time, 'yellow'))
+                        
+                elif len_target_values_counted <= CLASS_VALUE_COUNTS:
+                    if verbose:
+                        print(colored(advice_text, 'green'))
+                        
+            if discrete_columns == 'auto':
+                if len_target_values_counted <= CLASS_VALUE_COUNTS:
+                    if len_target_values_counted <= 10:
+                        classification = True
+                    elif int(target_values_counted.index.min()) == 0 and target_values_counted.index.max() == len_target_values_counted -1 and len_target_values_counted < 100:
+                        classification = True
+                    elif int(target_values_counted.index.min()) == 1 and target_values_counted.index.max() == len_target_values_counted  and len_target_values_counted < 100:
+                        classification = True
+                    
+
+            if classification:
                 # Test
                 if verbose:
                     print('CLASSIFIER cross validation:')                    
                     test_y_all = np.array([])
                     pred_all = np.array([])
-
+                    
+                    k_fold_dict = self.k_folds_split(work_df, target_now, K_FOLDS)
                     for k in range(0, K_FOLDS):
                         lgb_class = lgb.LGBMClassifier(random_state=0, n_jobs=-1, device=device)
                         lgb_class.fit(k_fold_dict['train_X'][k], k_fold_dict['train_y'][k])
                         pred = lgb_class.predict(k_fold_dict['test_X'][k])
                         test_y_all = np.concatenate(([test_y_all, k_fold_dict['test_y'][k]]), axis=None)
                         pred_all = np.concatenate((pred_all, pred), axis=None)
-                        
+
+
                     if target_now in self.encoder_pool:
                         enc_names = list(self.encoder_pool[target_now].keys())
                         print('\n', classification_report(test_y_all, pred_all, target_names=enc_names), '\n')
                     else:
                         print('\n', classification_report(test_y_all, pred_all), '\n')
-                    
+
                     rng = np.random.default_rng()
                     idx = rng.integers(len(pred_all)-1, size=20)
                     test = np.take(test_y_all, idx)
                     pred = np.take(pred_all, idx)
-                    
-                    print(f'first 20 y_test: {test[:20]}')
-                    print(f'first 20 y_pred: {pred[:20]}\n')
-                    
-                    
 
-                # Final prediction
+                    print(f'random 15 y_test: {test[:15]}')
+                    print(f'random 15 y_pred: {pred[:15]}\n')
+
+
+
+                X = work_df[predictors]
+                y = work_df[target_now]    
+                
+                # Final prediction & imputing
                 lgb_class = lgb.LGBMClassifier(random_state=0, n_jobs=-1, device=device)
                 lgb_class.fit(X, y)
                 pred_miss = lgb_class.predict(miss_df)
-
-                pred_miss = labelencoder.inverse_transform(pred_miss)
+                
+                if verbose:
+                    print(f'first 10 imputed: {np.round(pred_miss[:10], 1)}\n')
 
                 df.loc[miss_indeces, target_now] = np.array(pred_miss)
                 counter_predicted_values += len(miss_indeces)
 
-            # PREDICTIONS REGRESSOR
-            elif feature_type_target == 'float64' or feature_type_target == 'int64':
+
+            
+            # regression for target_now 
+            else:
+                min_y = work_df[target_now].min()
+                max_y = work_df[target_now].max()
+                work_df[target_now] = (work_df[target_now] - min_y) / (max_y - min_y)
+                work_df[target_now] = np.log1p(work_df[target_now])
                 # Test
                 if verbose:
                     print('REGRESSOR cross validation:')
 
                     test_y_all = np.array([])
                     pred_all = np.array([])
+                    
+                    k_fold_dict = self.k_folds_split(work_df, target_now, K_FOLDS)
                     for k in range(0, K_FOLDS):
                         lgb_reg = lgb.LGBMRegressor(n_jobs=-1, random_state=0, device=device)
                         lgb_reg.fit(k_fold_dict['train_X'][k], k_fold_dict['train_y'][k])
                         pred = lgb_reg.predict(k_fold_dict['test_X'][k])
-                        if y.min() >= 0.0:
+                        if min_y >= 0.0:
                             pred[pred < 0] = 0
                         test_y_all = np.concatenate(([test_y_all, k_fold_dict['test_y'][k]]), axis=None)
                         pred_all = np.concatenate((pred_all, pred), axis=None)
-
-                    print(f'                   MAE: {mean_absolute_error(test_y_all, pred_all)}')
-                    print(f'                  RMSE: {mean_squared_error(test_y_all,  pred_all) ** 0.5}')
-
-                    print(f'min for {target_now}: {df[target_now].min()}')
-                    print(f'avg for {target_now}: {df[target_now].mean()}')
-                    print(f'max for {target_now}: {df[target_now].max()}\n')
                     
+                    if to_int_flag or len_target_values_counted <= CLASS_VALUE_COUNTS:
+                        pred_all = pred_all.astype(int).astype(float)
+                        pred_all[pred_all < min_y] = min_y
+                        pred_all[pred_all > max_y] = max_y
+                        
+                    test_y_all = denormalize_targ(test_y_all, min_y, max_y)
+                    pred_all = denormalize_targ(pred_all, min_y, max_y)
+
+                    print(f'                       MAE: {mean_absolute_error(test_y_all, pred_all)}')
+                    print(f'                      RMSE: {mean_squared_error(test_y_all,  pred_all) ** 0.5}')
+
+                    print(f'min for {target_now}: {min_y}')
+                    print(f'avg for {target_now}: {test_y_all.mean()}')
+                    print(f'max for {target_now}: {max_y}\n')
+
                     rng = np.random.default_rng()
                     idx = rng.integers(len(pred_all)-1, size=10)
                     test = np.take(test_y_all, idx)
                     pred = np.take(pred_all, idx)
-                    
-                    print(f'first 10 y_test: {list(np.round(test, 1))}')
-                    print(f'first 10 y_pred: {list(np.round(pred, 1))}\n')
 
-                # Final prediction
+                    print(f'random 10 y_test: {list(np.round(test, 1))}')
+                    print(f'random 10 y_pred: {list(np.round(pred, 1))}\n')
+
+                X = work_df[predictors]
+                y = work_df[target_now]    
+                
+                # Final prediction & imputing
                 lgb_reg = lgb.LGBMRegressor(random_state=0, n_jobs=-1, device=device)
                 lgb_reg.fit(X, y)
                 pred_miss = lgb_reg.predict(miss_df)
-                if y.min() >= 0:
+                pred_miss = denormalize_targ(pred_miss, min_y, max_y)
+                if min_y >= 0:
                     pred_miss[pred_miss < 0] = 0
+                    
+                if to_int_flag or len_target_values_counted <= CLASS_VALUE_COUNTS:
+                    pred_miss = pred_miss.astype(int).astype(float)
+                    pred_miss[pred_miss < min_y] = min_y
+                    pred_miss[pred_miss > max_y] = max_y
+                    
+                if verbose:
+                    print(f'first 10 imputed: {list(np.round(pred_miss[:10], 1))}\n')
 
-                pred_miss = np.expm1(pred_miss)
-                pred_miss = (pred_miss * (max_y - min_y)) + min_y
 
                 df.loc[miss_indeces, target_now] = np.array(pred_miss)
                 counter_predicted_values += len(miss_indeces)
 
-            else:
-                if verbose:
-                    print(f"unprocessed feature: {target_now} - {feature_type_target} type")
+
 
             if verbose:
                 finish_iter_time = datetime.datetime.now()
@@ -1681,9 +1740,9 @@ class Snaplib:
 
         df.index = df_indeces
 
+        data_info = self.nan_info(df)
         if verbose:
             print('\n\n\n')
-            data_info = self.nan_info(df)
             print(data_info)
             print('\n\n\n')
             print(f'{counter_predicted_values} values have been predicted and replaced. \
@@ -1692,5 +1751,10 @@ class Snaplib:
             finish_time = datetime.datetime.now()
             requared = finish_time - init_time
             print(f'Required time totally: {str(requared)}\n\n')
+            
+        unprocessed_list = list(data_info[data_info['NaN_counts'].notnull()].index)
+        if unprocessed_list:
+            text = 'WARNING:\nUnprocessed columns :' + str(unprocessed_list) + '\nYou can try encoding or other methods'
+            print(colored(text, 'red'))
 
         return df
