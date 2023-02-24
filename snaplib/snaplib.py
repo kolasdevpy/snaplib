@@ -10,8 +10,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-
-
 from . import nans
 from . import encoder
 from . import splitter
@@ -20,8 +18,6 @@ from . import recover
 from . import fit_pred_bagged
 from . import feature_selection_bagged
 from . import save_load_algorithms
-
-
 
 
 # import datetime
@@ -42,6 +38,29 @@ from . import save_load_algorithms
 
 
 
+
+
+
+
+
+def redefine_doc(docstr):
+    """
+    Decorator: adoption outer func.__doc__.
+    """
+    def _decorator(func):
+        func.__doc__ = docstr
+        return func
+    return _decorator
+
+
+
+
+
+
+
+
+
+
 class Snaplib:
     '''
     data preprocessing library
@@ -51,77 +70,52 @@ class Snaplib:
 
 
 
-
-
     @staticmethod
+    @redefine_doc(nans.nan_info.__doc__)
     def nan_info(df : pd.DataFrame) -> pd.DataFrame:
-        '''
-        Get pandas.DataFrame with information about missing data in columns
-        Use case:
-        missing_info_df = Snaplib().nan_info(df)
-        '''
         return nans.nan_info(df)
 
 
 
 
     @staticmethod
+    @redefine_doc(nans.nan_plot.__doc__)
     def nan_plot(df : pd.DataFrame) -> plt.figure:
-        '''
-        Visualise missing data in pandas.DataFrame
-        Use case:
-        Snaplib().nan_plot(df)
-        '''
         return nans.nan_plot(df)
 
 
 
 
     @staticmethod
+    @redefine_doc(nans.cleane.__doc__)
     def cleane( df : pd.DataFrame, 
                 target : str = None, 
                 verbose : bool = True
                 ) -> pd.DataFrame: 
-        '''
-        drop_duplicates
-        drop rows with nan in target
-        drop column with 1 unique value
-        Use case:
-        df = Snaplib().cleane(df, target_name, verbose=True)
-        '''
         return nans.cleane(df, target, verbose)
 
 
 
 
+    @redefine_doc(encoder.Encoder.encode_dataframe.__doc__)
     def encode_dataframe(self, 
                          df : pd.DataFrame, 
                          inplace : bool = False, 
                          ) -> pd.DataFrame: 
-        '''
-        encode a dataframe
-        Use case:
-        df = Snaplib().encode_dataframe(df)
-        '''
         if inplace is False:
             df_copied = df.copy()
-
             return self.ENCODER.encode_dataframe(df_copied)
         elif inplace is True:
             return self.ENCODER.encode_dataframe(df)
 
 
 
-        
+    
+    @redefine_doc(encoder.Encoder.decode_dataframe.__doc__)
     def decode_dataframe(self, 
                          df : pd.DataFrame, 
                          inplace : bool = False, 
                          ) -> pd.DataFrame: 
-        '''
-        encode a dataframe
-        Use case:
-        df = Snaplib().decode_dataframe(df)
-        '''
         if inplace is False:
             df_copied = df.copy()
             return self.ENCODER.decode_dataframe(df_copied)
@@ -132,60 +126,24 @@ class Snaplib:
 
 
     @staticmethod
+    @redefine_doc(splitter.k_folds_split.__doc__)
     def k_folds_split(df : pd.DataFrame, 
                       target_name : str, 
                       k : int, 
                       ) -> dict: 
-        '''
-        Return a dictionary of lists of DataFrames and Series for target
-        with next structure:
-
-        k_fold_dict = { 
-                        'train_X' : [train_df_0, train_df_1, ... , train_df_k],
-                        'test_X'  : [etc.], 
-                        'train_y' : [series_0, series_1, ... , series_k],
-                        'test_y'  : [etc.],
-                      }
-
-        Use case:
-        k_fold_dict_data = Snaplib().k_folds_split(df, target_name, k)
-        '''
         return splitter.k_folds_split(df, target_name, k)
 
 
 
 
     @staticmethod
+    @redefine_doc(splitter.train_test_split_balanced.__doc__)
     def train_test_split_balanced(  df : pd.DataFrame, 
                                     target_feature : str, 
                                     test_size : float = 0.2, 
                                     random_state: int = 0, 
                                     research : bool = False, 
                                     ) -> tuple:
-        ''' 
-        Split the data with the distribution as close as possible 
-        to the same in both the train set and the test set, and not only for the target column, 
-        but also for all other columns.
-
-        Use case:
-        train_X, test_X, train_y, test_y = Snaplib().train_test_split_balanced(df, target_name, test_size=0.2, random_state=0, research=True)
-
-        1) The input should be a whole DataFrame. It's the first positional argument.
-        2) And the second positional argument should be the name of the target feature as a string.
-        3) This method has internal testing.
-        In this way you can testing the usefulness of the custom split.
-        The first test performing with a random_state values from 0 to 1/test_size by sklearn.model_selection.train_test_split.
-        Before split performing a final testing with Snaplib().train_test_split_balanced.
-
-        You can perform testing by specifying the value of the research argument = True.
-
-        4) If you are convinced that the method is useful. You can silence the method.
-        Set the research argument to False.
-
-        5) The number of possible random_state is an equivalent to 1/test_size.
-
-        TESTS on https://www.kaggle.com/artyomkolas/train-test-split-balanced-custom-in-snaplib/notebook
-        '''
         return  splitter.train_test_split_balanced( df, 
                                                     target_feature, 
                                                     test_size, 
@@ -197,6 +155,7 @@ class Snaplib:
 
 
     @staticmethod
+    @redefine_doc(cross_validation.cross_val.__doc__)
     def cross_val(algorithms : list, 
                   k_fold_dict : dict, 
                   metric : Callable, 
@@ -205,73 +164,26 @@ class Snaplib:
                   verbose : int or bool = 0, 
                   early_stopping_rounds : int = 0, 
                   ) -> float:
-        ''' 
-        Cross Validation method for list of algorithms.
-        
-        Use case:
-        score = Snaplib().cross_val(algorithms, 
+        return cross_validation.cross_val(
+                                    algorithms, 
                                     k_fold_dict, 
                                     metric, 
                                     task, 
                                     cv, 
-                                    verbose=0, 
-                                    early_stopping_rounds=0)
-        
-        algorithms is a list of algorithms like algs = [
-                                                        [LGBMClassifier, dict(params)],
-                                                        [XGBClassifier, dict(params)], 
-                                                        [CatBoostClassifier, dict(params)],
-                                                        ]
-        k_fold_dict is a dictionary with the structure:
-        
-        K_FOLD = 3
-        k_fold_dict = { 
-                        'train_X' : [df_0, df_1, df_2],
-                        'test_X'  : [df_0, df_1, df_2],
-                        'train_y' : [seri_0, seri_1, seri_2],
-                        'test_y'  : [seri_0, seri_1, seri_2],
-                       }
-
-        Get k_fold_dict:
-        k_fold_dict = Snaplib().k_folds_split(df, target_name_str, K_FOLD)
-              
-        metric is a metric like f1_score or mean_absolute_error : Callable.
-        task='clsf' or 'regr', classification or regression.
-        cv is num K_FOLD integer 
-        verbose = 0 mute, 1 verbose.
-        early_stopping_rounds default 0 or positive int.
-        '''
-        return cross_validation.cross_val(
-                    algorithms, 
-                    k_fold_dict, 
-                    metric, 
-                    task, 
-                    cv, 
-                    verbose=verbose, 
-                    early_stopping_rounds=early_stopping_rounds
-                    )
-
+                                    verbose=verbose, 
+                                    early_stopping_rounds=early_stopping_rounds
+                                    )
 
 
 
 
     @staticmethod
+    @redefine_doc(recover.recover_data.__doc__)
     def recover_data(df_in : pd.DataFrame, 
                      device : str = 'cpu',
                      verbose : int or bool = True,
                      discrete_columns : list or str = 'auto', 
                      ) -> pd.DataFrame:
-        ''' 
-        Imputing of missing values (np.nan) in tabular data, not TimeSeries.
-
-        Use case:
-        df = Snaplib().recover_data(df, verbose=True, discrete_columns="auto")
-        device must be "cpu" or "gpu". Sometime small datasets work faster with cpu.
-        if set verbose=True algorithm runs cross validation tests and print results of tests for decision making.
-        discrete_columns = ['col_name_1', 'col_name_2', 'col_name_3', 'etc']
-
-        TESTS on https://www.kaggle.com/code/artyomkolas/nan-prediction-in-progress/notebook
-        '''
         return recover.recover_data(df_in, 
                                     device=device,
                                     verbose=verbose,
@@ -281,8 +193,8 @@ class Snaplib:
 
 
 
-
     @staticmethod
+    @redefine_doc(fit_pred_bagged.fit_stacked.__doc__)
     def fit_stacked(algorithms_list : list, 
                     X_train : pd.DataFrame, 
                     y_train : pd.Series or np.ndarray, 
@@ -291,25 +203,6 @@ class Snaplib:
                     verbose : int or bool = 0, 
                     early_stopping_rounds : int = 0, 
                     ) -> list:
-        ''' 
-        Fit method for list of algorithms.
-        
-        Use case:
-        algorithms_list = Snaplib().fit_stacked(
-                                                algorithms_list, 
-                                                X_train, 
-                                                y_train, 
-                                                X_val=None, 
-                                                y_val=None,
-                                                verbose=0,
-                                                ):
-        
-        algorithms_list = list of algorithms [LGBMClassifier(), XGBClassifier(), CatBoostClassifier()].
-        X_train and y_train are data for training list of algorithms.
-
-        verbose = 0 mute, 1 verbose.
-        early_stopping_rounds default 0 or positive int.
-        '''
         return  fit_pred_bagged.fit_stacked(
                     algorithms_list, 
                     X_train, 
@@ -324,24 +217,11 @@ class Snaplib:
 
 
     @staticmethod
+    @redefine_doc(fit_pred_bagged.predict_stacked.__doc__)
     def predict_stacked(algorithms_list : list, 
                         X_pred : pd.DataFrame, 
                         task : str = 'clsf'
                         ) -> list:
-        ''' 
-        Prediction method for list of algorithms.
-        
-        Use case:
-        y_hat = predict_stacked(self, 
-                                algorithms_list, 
-                                X, 
-                                task='clsf'
-                                ):
-        
-        algorithms_list = list of algorithms [LGBMClassifier(), XGBClassifier(), CatBoostClassifier()].
-        X_pred is dataframe for prediction.
-        task='clsf' or 'regr', classification or regression
-        '''
         return  fit_pred_bagged.predict_stacked(algorithms_list, 
                                                 X_pred, 
                                                 task=task,
@@ -351,6 +231,7 @@ class Snaplib:
 
 
     @staticmethod
+    @redefine_doc(feature_selection_bagged.features_selection_regr.__doc__)
     def features_selection_regr(algorithms : list, 
                                 df : pd.DataFrame, 
                                 target : str, 
@@ -359,49 +240,21 @@ class Snaplib:
                                 verbose : int or bool = 0, 
                                 early_stopping_rounds : int = 0, 
                                 ) -> list:
-        '''
-        Select bests features for modeling and return list with bad features required to be droped.
-
-        Use case:
-        features_to_drop = Snaplib().features_selection_regr(algorithms, 
-                                                             df, 
-                                                             target, 
-                                                             metric, 
-                                                             cv, 
-                                                             verbose=0, 
-                                                             early_stopping_rounds=0)
-        
-        df.drop(features_to_drop, inplace=True, axis=1)
-
-
-        algorithms is a list of algorithms like algs = [
-                                                        [LGBMRegressor, dict(params)],
-                                                        [XGBRegressor, dict(params)], 
-                                                        [CatBoostRegressor, dict(params)],
-                                                        ]
-
-        df = pandas.core.frame.DataFrame.
-        target = name of target of str type.
-
-        metric is a metric like f1_score or mean_absolute_error : Callable.
-        cv is num K_FOLD integer 
-        verbose = 0 mute, 1 verbose.
-        early_stopping_rounds default 0 or positive int.
-        '''
         return feature_selection_bagged.features_selection_regr(
-                    algorithms, 
-                    df, 
-                    target, 
-                    metric, 
-                    cv, 
-                    verbose=verbose, 
-                    early_stopping_rounds=early_stopping_rounds, 
-                    )
+                                    algorithms, 
+                                    df, 
+                                    target, 
+                                    metric, 
+                                    cv, 
+                                    verbose=verbose, 
+                                    early_stopping_rounds=early_stopping_rounds, 
+                                    )
 
 
 
 
     @staticmethod
+    @redefine_doc(feature_selection_bagged.features_selection_clsf.__doc__)
     def features_selection_clsf(algorithms : list, 
                                 df : pd.DataFrame, 
                                 target : str, 
@@ -410,35 +263,6 @@ class Snaplib:
                                 verbose : int or bool = 0, 
                                 early_stopping_rounds : int = 0, 
                                 ) -> list:
-        ''' 
-        Select bests features for modeling and return list with bad features required to be droped.
-        
-        Use case:
-        features_to_drop = Snaplib().features_selection_clsf(algorithms, 
-                                                             df, 
-                                                             target, 
-                                                             metric, 
-                                                             cv, 
-                                                             verbose=0,  
-                                                             early_stopping_rounds=0)
-        
-        df.drop(features_to_drop, inplace=True, axis=1)
-
-
-        algorithms is a list of algorithms like algs = [
-                                                        [LGBMClassifier, dict(params)],
-                                                        [XGBClassifier, dict(params)], 
-                                                        [CatBoostClassifier, dict(params)],
-                                                        ]
-
-        df = pandas.core.frame.DataFrame.
-        target = name of target of str type.
-                
-        metric is a metric like f1_score or mean_absolute_error : Callable.
-        cv is num K_FOLD integer 
-        verbose = 0 mute, 1 verbose.
-        early_stopping_rounds default 0 or positive int.
-        '''
         return feature_selection_bagged.features_selection_clsf(
                     algorithms, 
                     df, 
@@ -452,24 +276,11 @@ class Snaplib:
 
 
 
-
     @staticmethod
+    @redefine_doc(save_load_algorithms.save_stack.__doc__)
     def save_stack( algorithms_list : list, 
                     directory : str = ''
                     ) -> None:
-        ''' 
-        Save method for all in list of algorithms in directory.
-        Return list of file names
-        
-        Use case:
-        file_names = save_stack(algorithms_list, directory='')
-        
-        algorithms_list = list of algorithms [LGBMClassifier(), XGBClassifier(), CatBoostClassifier()].
-        directory:
-        '' - save files to current working directory
-        or
-        save files to /some/directory/not/exist/
-        '''
         return save_load_algorithms.save_stack(algorithms_list, 
                                                directory=directory)
 
@@ -477,22 +288,10 @@ class Snaplib:
 
 
     @staticmethod
+    @redefine_doc(save_load_algorithms.load_stack.__doc__)
     def load_stack( names_list : list, 
                     directory : str = ''
                     ) -> None:
-        ''' 
-        Load method for file names in list of names in directory.
-        Return list of algorithms.
-        
-        Use case:
-        algorithms = load_stack(names_list, directory='')
-        
-        names_list is the list of names like ['LGBMClassifier.sav', 'XGBClassifier.sav', 'CatBoostClassifier.sav']
-        directory:
-        '' - read files from current working directory
-        or
-        read files from /some/directory/not/exist/
-        '''
         return save_load_algorithms.load_stack( names_list, 
                                                 directory=directory, 
                                                 )

@@ -130,6 +130,9 @@ class Encoder:
 
 
     def decode_column(self, df, column):
+        '''
+        decode one column in pd.DataFrame.
+        '''
         df[column] = df[column].map(self.decoder_pool[column])
         df[column] = df[column].astype('object')
         return df
