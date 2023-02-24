@@ -43,19 +43,14 @@ from . import save_load_algorithms
 
 
 
-def redefine_doc(docstr):
-    """
+def redefine_doc(doc):
+    '''
     Decorator: adoption outer func.__doc__.
-    """
+    '''
     def _decorator(func):
-        func.__doc__ = docstr
+        func.__doc__ = doc
         return func
     return _decorator
-
-
-
-
-
 
 
 
@@ -64,7 +59,26 @@ def redefine_doc(docstr):
 class Snaplib:
     '''
     data preprocessing library
+
+    This library has methods for preprocessig data : pandas.DataFrame
+        1. nan_info
+        2. nan_plot
+        3. cleane
+        4. recover_data - NaN imputing with ML,
+        5. train_test_split_balanced
+        6. encode_dataframe
+        7. decode_dataframe
+        8. k_folds_split
+
+    For one and list of algorithms
+        9. cross_val
+        10. features_selection_clsf
+        11. fit_stacked
+        12. save_stack
+        13. load_stack
+        14. predict_stacked
     '''
+
     ENCODER = encoder.Encoder()
 
 
