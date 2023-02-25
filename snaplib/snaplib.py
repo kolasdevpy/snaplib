@@ -43,14 +43,19 @@ from . import save_load_algorithms
 
 
 
-def redefine_doc(doc):
+def inherit_doc(doc : str) -> Callable:
     '''
-    Decorator: adoption outer func.__doc__.
+    Decorator: inheritance outer func.__doc__.
     '''
-    def _decorator(func):
+    def _decorator(func : Callable) -> Callable:
         func.__doc__ = doc
         return func
     return _decorator
+
+
+
+
+
 
 
 
@@ -85,7 +90,7 @@ class Snaplib:
 
 
     @staticmethod
-    @redefine_doc(nans.nan_info.__doc__)
+    @inherit_doc(nans.nan_info.__doc__)
     def nan_info(df : pd.DataFrame) -> pd.DataFrame:
         return nans.nan_info(df)
 
@@ -93,7 +98,7 @@ class Snaplib:
 
 
     @staticmethod
-    @redefine_doc(nans.nan_plot.__doc__)
+    @inherit_doc(nans.nan_plot.__doc__)
     def nan_plot(df : pd.DataFrame) -> plt.figure:
         return nans.nan_plot(df)
 
@@ -101,7 +106,7 @@ class Snaplib:
 
 
     @staticmethod
-    @redefine_doc(nans.cleane.__doc__)
+    @inherit_doc(nans.cleane.__doc__)
     def cleane( df : pd.DataFrame, 
                 target : str = None, 
                 verbose : bool = True
@@ -111,7 +116,7 @@ class Snaplib:
 
 
 
-    @redefine_doc(encoder.Encoder.encode_dataframe.__doc__)
+    @inherit_doc(encoder.Encoder.encode_dataframe.__doc__)
     def encode_dataframe(self, 
                          df : pd.DataFrame, 
                          inplace : bool = False, 
@@ -125,7 +130,7 @@ class Snaplib:
 
 
     
-    @redefine_doc(encoder.Encoder.decode_dataframe.__doc__)
+    @inherit_doc(encoder.Encoder.decode_dataframe.__doc__)
     def decode_dataframe(self, 
                          df : pd.DataFrame, 
                          inplace : bool = False, 
@@ -140,7 +145,7 @@ class Snaplib:
 
 
     @staticmethod
-    @redefine_doc(splitter.k_folds_split.__doc__)
+    @inherit_doc(splitter.k_folds_split.__doc__)
     def k_folds_split(df : pd.DataFrame, 
                       target_name : str, 
                       k : int, 
@@ -151,7 +156,7 @@ class Snaplib:
 
 
     @staticmethod
-    @redefine_doc(splitter.train_test_split_balanced.__doc__)
+    @inherit_doc(splitter.train_test_split_balanced.__doc__)
     def train_test_split_balanced(  df : pd.DataFrame, 
                                     target_feature : str, 
                                     test_size : float = 0.2, 
@@ -169,7 +174,7 @@ class Snaplib:
 
 
     @staticmethod
-    @redefine_doc(cross_validation.cross_val.__doc__)
+    @inherit_doc(cross_validation.cross_val.__doc__)
     def cross_val(algorithms : list, 
                   k_fold_dict : dict, 
                   metric : Callable, 
@@ -192,7 +197,7 @@ class Snaplib:
 
 
     @staticmethod
-    @redefine_doc(recover.recover_data.__doc__)
+    @inherit_doc(recover.recover_data.__doc__)
     def recover_data(df_in : pd.DataFrame, 
                      device : str = 'cpu',
                      verbose : int or bool = True,
@@ -208,7 +213,7 @@ class Snaplib:
 
 
     @staticmethod
-    @redefine_doc(fit_pred_bagged.fit_stacked.__doc__)
+    @inherit_doc(fit_pred_bagged.fit_stacked.__doc__)
     def fit_stacked(algorithms_list : list, 
                     X_train : pd.DataFrame, 
                     y_train : pd.Series or np.ndarray, 
@@ -231,7 +236,7 @@ class Snaplib:
 
 
     @staticmethod
-    @redefine_doc(fit_pred_bagged.predict_stacked.__doc__)
+    @inherit_doc(fit_pred_bagged.predict_stacked.__doc__)
     def predict_stacked(algorithms_list : list, 
                         X_pred : pd.DataFrame, 
                         task : str = 'clsf'
@@ -245,7 +250,7 @@ class Snaplib:
 
 
     @staticmethod
-    @redefine_doc(feature_selection_bagged.features_selection_regr.__doc__)
+    @inherit_doc(feature_selection_bagged.features_selection_regr.__doc__)
     def features_selection_regr(algorithms : list, 
                                 df : pd.DataFrame, 
                                 target : str, 
@@ -268,7 +273,7 @@ class Snaplib:
 
 
     @staticmethod
-    @redefine_doc(feature_selection_bagged.features_selection_clsf.__doc__)
+    @inherit_doc(feature_selection_bagged.features_selection_clsf.__doc__)
     def features_selection_clsf(algorithms : list, 
                                 df : pd.DataFrame, 
                                 target : str, 
@@ -291,7 +296,7 @@ class Snaplib:
 
 
     @staticmethod
-    @redefine_doc(save_load_algorithms.save_stack.__doc__)
+    @inherit_doc(save_load_algorithms.save_stack.__doc__)
     def save_stack( algorithms_list : list, 
                     directory : str = ''
                     ) -> None:
@@ -302,7 +307,7 @@ class Snaplib:
 
 
     @staticmethod
-    @redefine_doc(save_load_algorithms.load_stack.__doc__)
+    @inherit_doc(save_load_algorithms.load_stack.__doc__)
     def load_stack( names_list : list, 
                     directory : str = ''
                     ) -> None:
