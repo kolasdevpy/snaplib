@@ -48,7 +48,7 @@ class Encoder:
 
 
     def encode_dataframe(self, 
-                         df : pd.DataFrame, 
+                         df_in : pd.DataFrame, 
                          ) -> pd.DataFrame: 
 
         '''
@@ -57,8 +57,11 @@ class Encoder:
         df = Snaplib().encode_dataframe(df)
         '''
 
-        if not isinstance(df, pd.core.frame.DataFrame):
+        if not isinstance(df_in, pd.core.frame.DataFrame):
             raise TypeError('The df must be a pandas.core.frame.DataFrame instance.')
+
+        df = df_in.copy()
+
 
         self.encoder_pool = {}
         self.decoder_pool = {}
@@ -110,7 +113,7 @@ class Encoder:
 
 
     def decode_dataframe(self, 
-                         df : pd.DataFrame, 
+                         df_in : pd.DataFrame, 
                          ) -> pd.DataFrame: 
 
         '''
@@ -119,8 +122,10 @@ class Encoder:
         df = Snaplib().decode_dataframe(df)
         '''
 
-        if not isinstance(df, pd.core.frame.DataFrame):
+        if not isinstance(df_in, pd.core.frame.DataFrame):
             raise TypeError('The df must be a pandas.core.frame.DataFrame instance.')
+
+        df = df_in.copy()
 
         for col in self.encoded_columns:
             df[col] = self.decode_column(df[[col]], col)
