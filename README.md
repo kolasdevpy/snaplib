@@ -57,7 +57,7 @@ Imputing of missing values (np.nan) in tabular data, not TimeSeries.
 Use case:
 df = Snaplib().recover_data(df, device="cpu", verbose=True)      
 device must be "cpu" or "gpu". Sometime small datasets work faster with cpu.      
-if set verbose = if True algorithm runs cross validation tests and print results of tests for decision making.      
+verbose = True algorithm runs cross validation tests and prints results of tests for decision making.      
 discrete_columns = ['col_name_1', 'col_name_2', 'col_name_3', 'etc']      
 
 TESTS on <https://www.kaggle.com/code/artyomkolas/nan-prediction-in-progress/notebook>      
