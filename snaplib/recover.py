@@ -74,7 +74,6 @@ def recover_data(df_0 : pd.DataFrame,
 
 
 
-
     def get_predictors(columns, target_column):
         columns_now = columns[:]
         if target_column in columns:

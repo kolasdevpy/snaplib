@@ -4,17 +4,13 @@ with open("README.md", "r") as readme_file:
     readme = readme_file.read()
 
 requirements = [
-                "pandas==1.5.3", 
-                "numpy==1.24.0", 
-                "matplotlib==3.7.0", 
-                "lightgbm==3.3.5", 
-                "sklearn==1.2.1", 
-                "seaborn==0.12.2", 
+                "pandas>=1", 
+                "numpy>=1", 
                 ]
 
 setup(
     name="snaplib",
-    version="0.4.6",
+    version="0.4.93",
     author="Artsiom Kolas",
     author_email="artyom.kolas@gmail.com",
     description="Data preprocessing lib",
@@ -24,7 +20,7 @@ setup(
     packages=find_packages(),
     install_requires=requirements,
     classifiers=[
-        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.7",
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     ],
 )

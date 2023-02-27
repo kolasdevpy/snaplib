@@ -17,9 +17,9 @@ def save_stack( algorithms_list : list,
     
     algorithms_list = list of algorithms [LGBMClassifier(), XGBClassifier(), CatBoostClassifier()].
     directory:
-    '' - save files to current working directory
+    "" - save files to current working directory
     or
-    save files to /some/directory/not/exist/
+    save files to "/some/directory/not/exist/"
     '''
 
     if type(algorithms_list) != list:
@@ -64,9 +64,9 @@ def load_stack( names_list : list,
     
     names_list is the list of names like ['LGBMClassifier.sav', 'XGBClassifier.sav', 'CatBoostClassifier.sav']
     directory:
-    '' - read files from current working directory
+    "" - read files from current working directory
     or
-    read files from /some/directory/not/exist/
+    read files from "/some/directory/with/models/"
     '''
 
     if type(names_list) != list:
