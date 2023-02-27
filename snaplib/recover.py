@@ -29,7 +29,7 @@ def recover_data(df_0 : pd.DataFrame,
     Imputing of missing values (np.nan) in tabular data, not TimeSeries.
 
     Use case:
-    df = Snaplib().recover_data(df, verbose=True, stacking=True)
+    df = Snaplib().recover_data(df, device="cpu", verbose=True)
     device must be "cpu" or "gpu". Sometime small datasets work faster with cpu.
     if set verbose = if True algorithm runs cross validation tests and print results of tests for decision making.
     discrete_columns = ['col_name_1', 'col_name_2', 'col_name_3', 'etc']
@@ -197,12 +197,6 @@ def recover_data(df_0 : pd.DataFrame,
             ints = chek_int(str_floats)
             if len_target_values_counted <= CLASS_VALUE_COUNTS and ints:
                 classification = True
-
-                    
-        # print(target_values_counted)
-        # print(len_target_values_counted)
-        # print('classification', classification)
-        # print('to_int_flag', to_int_flag)
 
         if classification:
             # Test
