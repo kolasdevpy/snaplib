@@ -7,9 +7,9 @@ from typing import Callable
 
 from . import nans
 from . import encoder
-from . import splitter
 from . import dummied
 from . import recover
+from . import splitter
 from . import cross_validation
 from . import fit_pred_bagged
 from . import feature_selection_bagged
@@ -100,7 +100,7 @@ class Snaplib:
     @staticmethod
     @inherit_doc(dummied.dummied.__doc__)
     def dummied(*args, **kwargs):
-        return recover.dummied(*args, **kwargs)
+        return dummied.dummied(*args, **kwargs)
     
 
     @inherit_doc(encoder.Encoder.encode_dataframe.__doc__)

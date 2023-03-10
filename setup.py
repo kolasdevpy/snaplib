@@ -1,16 +1,18 @@
 from setuptools import setup, find_packages
 
+
+
+
 with open("README.md", "r") as readme_file:
     readme = readme_file.read()
 
-requirements = [
-                "pandas>=1", 
-                "numpy>=1", 
-                ]
+requirements = ["pandas>=1", 
+                "numpy>=1", ]
+
 
 setup(
     name="snaplib",
-    version="0.4.94",
+    version="0.4.95",
     author="Artsiom Kolas",
     author_email="artyom.kolas@gmail.com",
     description="Data preprocessing lib",
