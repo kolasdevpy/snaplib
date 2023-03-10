@@ -4,7 +4,7 @@ import pandas as pd
 
 
 def dummied(df : pd.DataFrame, 
-            columns : list[str], 
+            columns : list, 
             ) -> pd.DataFrame: 
     '''
     dummied the passed columns

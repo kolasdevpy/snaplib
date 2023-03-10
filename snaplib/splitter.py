@@ -84,11 +84,7 @@ def train_test_split_balanced(  df : pd.DataFrame,
                                 test_size : float, 
                                 random_state: int, 
                                 research : bool, 
-                                ) -> tuple[pd.DataFrame, 
-                                           pd.DataFrame,
-                                           pd.Series, 
-                                           pd.Series
-                                           ]:
+                                ) -> tuple:
 
     ''' 
     Split the data with the distribution as close as possible 
