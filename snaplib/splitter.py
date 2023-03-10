@@ -1,4 +1,5 @@
 import datetime
+import random
 
 import pandas as pd
 import numpy as np
@@ -6,11 +7,15 @@ import matplotlib.pyplot as plt
 
 
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
-from sklearn.metrics import f1_score, classification_report, confusion_matrix
+from sklearn.metrics import mean_absolute_error
+from sklearn.metrics import f1_score
 
 import lightgbm as lgb
 
+
+
+
+random.seed(42)
 
 
 
@@ -79,7 +84,11 @@ def train_test_split_balanced(  df : pd.DataFrame,
                                 test_size : float, 
                                 random_state: int, 
                                 research : bool, 
-                                ) -> tuple:
+                                ) -> tuple[pd.DataFrame, 
+                                           pd.DataFrame,
+                                           pd.Series, 
+                                           pd.Series
+                                           ]:
 
     ''' 
     Split the data with the distribution as close as possible 
@@ -202,6 +211,9 @@ def train_test_split_balanced(  df : pd.DataFrame,
             else:
                 test_indexes.append(el)
 
+        random.shuffle(train_indexes)
+        random.shuffle(test_indexes)
+
         train_X = X.iloc[train_indexes]
         train_y = y.iloc[train_indexes, 0]
         test_X = X.iloc[test_indexes]
@@ -282,3 +294,4 @@ def train_test_split_balanced(  df : pd.DataFrame,
             visualize(train_X[column], test_X[column], column, ' train_X', ' test_X')
 
     return train_X, test_X, train_y, test_y
+

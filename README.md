@@ -30,19 +30,21 @@ sl = Snaplib()
 1. sl.nan_info     
 2. sl.nan_plot     
 3. sl.cleane     
-4. sl.recover_data - NaN imputing with ML     
-5. sl.train_test_split_balanced     
+4. sl.recover_data - NaN imputing with ML
+5. sl.dummied     
 6. sl.encode_dataframe     
-7. sl.decode_dataframe     
-8. sl.k_folds_split     
+7. sl.decode_dataframe    
+8. sl.train_test_split_balanced      
+9. sl.k_folds_split     
+
 ### For one and list of algorithms with bagging
-9. sl.cross_val    
-10. sl.features_selection_regr
-11. sl.features_selection_clsf     
-12. sl.fit_stacked     
-13. sl.save_stack     
-14. sl.load_stack     
-15. sl.predict_stacked      
+10. sl.cross_val    
+11. sl.features_selection_regr
+12. sl.features_selection_clsf     
+13. sl.fit_stacked     
+14. sl.save_stack     
+15. sl.load_stack     
+16. sl.predict_stacked      
 
 
 

@@ -10,7 +10,7 @@ requirements = [
 
 setup(
     name="snaplib",
-    version="0.4.93",
+    version="0.4.94",
     author="Artsiom Kolas",
     author_email="artyom.kolas@gmail.com",
     description="Data preprocessing lib",

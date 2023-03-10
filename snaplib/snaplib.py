@@ -8,11 +8,13 @@ from typing import Callable
 from . import nans
 from . import encoder
 from . import splitter
-from . import cross_validation
+from . import dummied
 from . import recover
+from . import cross_validation
 from . import fit_pred_bagged
 from . import feature_selection_bagged
 from . import save_load_algorithms
+
 
 
 
@@ -49,19 +51,21 @@ class Snaplib:
         1. nan_info
         2. nan_plot
         3. cleane
-        4. recover_data - NaN imputing with ML,
-        5. train_test_split_balanced
+        4. recover_data - NaN imputing with ML
+        5. dummied
         6. encode_dataframe
         7. decode_dataframe
-        8. k_folds_split
+        8. train_test_split_balanced
+        9. k_folds_split
 
     For one and list of algorithms
-        9. cross_val
-        10. features_selection_clsf
-        11. fit_stacked
-        12. save_stack
-        13. load_stack
-        14. predict_stacked
+        10. cross_val
+        11. sl.features_selection_regr
+        12. sl.features_selection_clsf 
+        13. fit_stacked
+        14. save_stack
+        15. load_stack
+        16. predict_stacked
     '''
 
     ENCODER = encoder.Encoder()
@@ -85,7 +89,19 @@ class Snaplib:
     @inherit_doc(nans.cleane.__doc__)
     def cleane(*args, **kwargs): 
         return nans.cleane(*args, **kwargs)
+    
 
+    @staticmethod
+    @inherit_doc(recover.recover_data.__doc__)
+    def recover_data(*args, **kwargs):
+        return recover.recover_data(*args, **kwargs)
+    
+
+    @staticmethod
+    @inherit_doc(dummied.dummied.__doc__)
+    def dummied(*args, **kwargs):
+        return recover.dummied(*args, **kwargs)
+    
 
     @inherit_doc(encoder.Encoder.encode_dataframe.__doc__)
     def encode_dataframe(self, *args, **kwargs): 
@@ -98,27 +114,21 @@ class Snaplib:
 
 
     @staticmethod
+    @inherit_doc(splitter.train_test_split_balanced.__doc__)
+    def train_test_split_balanced(*args, **kwargs):
+        return  splitter.train_test_split_balanced(*args, **kwargs)
+    
+
+    @staticmethod
     @inherit_doc(splitter.k_folds_split.__doc__)
     def k_folds_split(*args, **kwargs): 
         return splitter.k_folds_split(*args, **kwargs)
 
 
     @staticmethod
-    @inherit_doc(splitter.train_test_split_balanced.__doc__)
-    def train_test_split_balanced(*args, **kwargs):
-        return  splitter.train_test_split_balanced(*args, **kwargs)
-
-
-    @staticmethod
     @inherit_doc(cross_validation.cross_val.__doc__)
     def cross_val(*args, **kwargs):
         return cross_validation.cross_val(*args, **kwargs)
-
-
-    @staticmethod
-    @inherit_doc(recover.recover_data.__doc__)
-    def recover_data(*args, **kwargs):
-        return recover.recover_data(*args, **kwargs)
 
 
     @staticmethod
